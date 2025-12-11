@@ -1,21 +1,18 @@
-# 1. 基础镜像
-FROM node:18-alpine AS base
+# ▼▼▼ 核心修复：把 18 改为 20 (Next.js 15 需要 Node 20+) ▼▼▼
+FROM node:20-alpine AS base
 
-# ▼▼▼ 修复 1: 安装 OpenSSL 和兼容库 (解决 Prisma 引擎检测不到 SSL 的问题) ▼▼▼
+# 安装 OpenSSL 和兼容库
 RUN apk add --no-cache libc6-compat openssl
 
 # 2. 安装依赖
 FROM base AS deps
 WORKDIR /app
 
-# 复制依赖定义
 COPY package.json package-lock.json* ./
 
-# ▼▼▼ 修复 2: 在运行 npm ci 之前，先把 prisma 文件夹复制进去 ▼▼▼
-# 这样 postinstall 里的 "prisma generate" 就能找到 schema 文件了
+# 复制 prisma 文件夹 (确保 postinstall 能找到 schema)
 COPY prisma ./prisma
 
-# 安装依赖 (这时 postinstall 会自动运行 prisma generate，因为 schema 已经有了，所以不会报错)
 RUN npm ci
 
 # 3. 构建代码
@@ -24,7 +21,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# 生成 Prisma Client (再运行一次确保万无一失)
+# 生成 Prisma Client
 RUN npx prisma generate
 # 构建 Next.js
 RUN npm run build
