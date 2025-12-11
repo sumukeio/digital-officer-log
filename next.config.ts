@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   // 2. 新增：调大 Server Actions 的上传限制
   experimental: {
     serverActions: {
-      bodySizeLimit: '50mb', // 这里设置为 10MB，你可以根据需要改成 '50mb'
+      bodySizeLimit: '100mb', // 这里设置为 10MB，你可以根据需要改成 '50mb'
     },
   },
 };
