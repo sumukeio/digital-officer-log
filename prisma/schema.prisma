@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// === 1. 用户与权限模型 ===
+model User {
+  id              String   @id @default(cuid())
+  workId          String   @unique // 工号
+  password        String
+  name            String?
+  
+  // 多对多关系：一个用户多个角色
+  roles           Role[]   
+  
+  // 该用户可选择的区域配置 (管理员给配置)
+  assignedAreas   String?  @default("注塑A区,注塑B区") 
+  
+  reports         DailyReport[]
+  createdAt       DateTime @default(now())
+  
+  // 新增：是否为默认密码 (默认为 true)
+  isDefaultPassword Boolean @default(true)
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // "admin", "officer"
+  description String?
+  users       User[]
+}
+
+// === 2. 动态模板模型 (管理员配置) ===
+model Question {
+  id          String   @id @default(cuid())
+  label       String   // 题目内容，如 "生产头条开卡几条？"
+  type        String   // "number", "boolean", "text"
+  category    String   // "生产与质量", "现场与设备"...
+  order       Int      @default(0) // 排序
+  isEnabled   Boolean  @default(true) // 是否启用
+  createdAt   DateTime @default(now())
+}
+
+// === 3. 日报模型 (改为 JSON 存储答案) ===
+model DailyReport {
+  id        String   @id @default(cuid())
+  date      DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  area      String   // 提交时选择的区域
+
+  // 核心改动：不再由几百个字段组成
+  // 而是用一个 JSON 字段存储所有“题目ID -> 答案”的映射
+  // 同时也存一份快照（防止管理员改了题目，历史数据乱了）
+  answers   String   // JSON string: { "questionId1": { val: 10, remark: "...", imgs: [] } }
+
+  summary   String?
+
+  createdAt DateTime @updatedAt
+  
+  @@unique([userId, date])
+}
