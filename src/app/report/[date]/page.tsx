@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { getEnabledQuestions, getReportDetail } from "@/app/actions/submit-report";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,9 +122,21 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ d
                                                                         {img} (点击看大图 - 仅演示)
                                                                     </DialogTrigger>
                                                                     {/* 这里演示用一张占位图，因为目前数据库存的还不是真实 URL */}
-                                                                    <DialogContent className="max-w-3xl">
-                                                                        <div className="text-center p-4">实际部署连接 MinIO 后，这里显示真实图片: {img}</div>
-                                                                        {/* <img src={realUrl} ... /> */}
+                                                                    <DialogContent className="max-w-4xl flex flex-col items-center justify-center bg-transparent border-0 shadow-none p-0">
+                                                                        {/* 必须加上 Header 和 Title，用 sr-only 隐藏它，或者直接显示文件名 */}
+                                                                        <DialogHeader className="sr-only">
+                                                                            <DialogTitle>图片预览</DialogTitle>
+                                                                            <DialogDescription>查看图片详情</DialogDescription>
+                                                                        </DialogHeader>
+
+                                                                        {/* 这里因为数据库现在存的是 "[待上传]..." 字符串，没法直接显示图。
+                             等接了真实 MinIO 后，这里 src={img} 即可 */}
+                                                                        <div className="relative w-full h-auto">
+                                                                            {/* 暂时用个占位，如果是真实URL直接 <img src={img} ... /> */}
+                                                                            <div className="bg-white p-4 rounded text-center">
+                                                                                <p>图片路径：{img}</p>
+                                                                            </div>
+                                                                        </div>
                                                                     </DialogContent>
                                                                 </Dialog>
                                                             </div>

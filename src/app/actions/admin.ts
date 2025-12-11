@@ -3,9 +3,10 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-// === 用户管理 ===
+// =========================================================
+// 1. 用户管理 (User Management)
+// =========================================================
 
-// 1. 获取所有用户
 export async function getUsers() {
   return await prisma.user.findMany({
     include: { roles: true },
@@ -13,7 +14,6 @@ export async function getUsers() {
   });
 }
 
-// 2. 创建/更新用户
 export async function saveUser(formData: FormData) {
   const id = formData.get("id") as string;
   const workId = formData.get("workId") as string;
@@ -21,7 +21,6 @@ export async function saveUser(formData: FormData) {
   const areas = formData.get("areas") as string;
   const isAdmin = formData.get("isAdmin") === "on";
   
-  // 获取角色ID
   const adminRole = await prisma.role.findUnique({ where: { name: "admin" } });
   const officerRole = await prisma.role.findUnique({ where: { name: "officer" } });
 
@@ -29,22 +28,19 @@ export async function saveUser(formData: FormData) {
   if (isAdmin) rolesConnect.push({ id: adminRole?.id });
 
   if (id) {
-    // 更新
+    // 编辑
     await prisma.user.update({
       where: { id },
       data: {
         workId, name, assignedAreas: areas,
-        roles: { set: [], connect: rolesConnect as any } // 重置角色
+        roles: { set: [], connect: rolesConnect as any }
       }
     });
   } else {
-    // 新增
+    // 新增 (默认密码 123456)
     await prisma.user.create({
       data: {
-        workId, 
-        name, 
-        password: "123456", 
-        assignedAreas: areas,
+        workId, name, password: "123456", assignedAreas: areas,
         roles: { connect: rolesConnect as any }
       }
     });
@@ -52,50 +48,140 @@ export async function saveUser(formData: FormData) {
   revalidatePath("/admin/users");
 }
 
-// 3. 删除用户
 export async function deleteUser(id: string) {
   await prisma.user.delete({ where: { id } });
   revalidatePath("/admin/users");
 }
 
-// === 模板管理 ===
-
-// 4. 获取所有题目
-export async function getQuestions() {
-  return await prisma.question.findMany({ orderBy: { order: 'asc' } });
-}
-
-// 5. 保存题目状态 (禁用/启用/改名)
-export async function updateQuestion(id: string, data: any) {
-  await prisma.question.update({ where: { id }, data });
-  revalidatePath("/admin/template");
-}
-
-// 新增：重置密码
 export async function resetUserPassword(userId: string) {
-  // 必须鉴权 (只有管理员能调) - 这里省略了严格的角色检查，建议加上
   await prisma.user.update({
     where: { id: userId },
-    data: {
-      password: "123456", // 重置回初始密码
-      isDefaultPassword: true // 标记为默认，用户下次登录会被强制修改
-    }
+    data: { password: "123456", isDefaultPassword: true }
   });
   revalidatePath("/admin/users");
 }
 
-// ▼▼▼ 新增：导出所有日报数据 ▼▼▼
+// =========================================================
+// 2. Excel 导出 (Export)
+// =========================================================
+
 export async function getAllReportsForExport() {
-  // 简单鉴权：确保是登录状态
-  // (严格来说这里应该检查是否为管理员角色，但在内网工具中，登录即可导出通常也是可接受的)
-  // const user = await getCurrentUser(); // 如果你之前没在 admin.ts 引入 getCurrentUser，需要从 auth 引入，或者暂时跳过鉴权
-  
   const reports = await prisma.dailyReport.findMany({
-    orderBy: { date: "desc" }, // 按日期倒序
-    include: {
-      user: true, // 关键：把关联的用户信息（姓名、工号）也查出来
-    },
+    orderBy: { date: "desc" },
+    include: { user: true },
+  });
+  return reports;
+}
+
+// =========================================================
+// 3. 模板管理 (Template Management)
+// =========================================================
+
+export async function getQuestions() {
+  return await prisma.question.findMany({ orderBy: { order: 'asc' } });
+}
+
+export async function saveQuestion(formData: FormData) {
+  const id = formData.get("id") as string;
+  const label = formData.get("label") as string;
+  const type = formData.get("type") as string;
+  const category = formData.get("category") as string;
+
+  if (id) {
+    await prisma.question.update({
+      where: { id },
+      data: { label, type, category }
+    });
+  } else {
+    const last = await prisma.question.findFirst({ orderBy: { order: 'desc' } });
+    const newOrder = (last?.order || 0) + 1;
+    await prisma.question.create({
+      data: { label, type, category, order: newOrder, isEnabled: true }
+    });
+  }
+  revalidatePath("/admin/template");
+  revalidatePath("/report/new");
+}
+
+export async function updateQuestion(id: string, data: any) {
+  await prisma.question.update({ where: { id }, data });
+  revalidatePath("/admin/template");
+  revalidatePath("/report/new");
+}
+
+export async function reorderQuestions(newOrderIds: string[]) {
+  const updates = newOrderIds.map((id, index) => 
+    prisma.question.update({
+      where: { id },
+      data: { order: index + 1 }
+    })
+  );
+  await prisma.$transaction(updates);
+  revalidatePath("/admin/template");
+  revalidatePath("/report/new");
+}
+
+export async function deleteQuestion(id: string) {
+  await prisma.question.delete({ where: { id } });
+  revalidatePath("/admin/template");
+  revalidatePath("/report/new");
+}
+
+// =========================================================
+// 4. 数据看板分析 (Data Analytics)
+// =========================================================
+
+export async function getAnalyticsData() {
+  // 1. 获取所有已启用题目
+  const questions = await prisma.question.findMany({ where: { isEnabled: true } });
+  
+  // 2. 建立 "关键词 -> 题目ID" 映射
+  // 这样无论题目ID怎么变，只要标题包含关键词就能识别
+  const metricsMap: Record<string, string> = {};
+  questions.forEach(q => {
+    if (q.label.includes("生产头条开卡")) metricsMap["prod_open"] = q.id;
+    if (q.label.includes("QC头条开卡")) metricsMap["qc_open"] = q.id;
+    if (q.label.includes("OKR开卡")) metricsMap["okr_open"] = q.id;
+    if (q.label.includes("精益提报")) metricsMap["lean_open"] = q.id;
+    if (q.label.includes("IPQC点检")) metricsMap["ipqc_open"] = q.id;
   });
 
-  return reports;
+  // 3. 获取最近 30 天的数据
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  const reports = await prisma.dailyReport.findMany({
+    where: { date: { gte: thirtyDaysAgo } },
+    orderBy: { date: 'asc' }
+  });
+
+  // 4. 按日期聚合数据
+  const dailyStats: Record<string, any> = {};
+
+  reports.forEach(r => {
+    // 简单时区处理，取 MM-DD
+    const dateKey = new Date(r.date.getTime() + 8 * 3600 * 1000).toISOString().slice(5, 10);
+    
+    if (!dailyStats[dateKey]) {
+      dailyStats[dateKey] = { date: dateKey, prod: 0, qc: 0, okr: 0, lean: 0, ipqc: 0 };
+    }
+
+    try {
+      const answers = JSON.parse(r.answers);
+      const getVal = (key: string) => {
+        const qId = metricsMap[key];
+        if (!qId || !answers[qId]) return 0;
+        return Number(answers[qId].value) || 0;
+      };
+
+      // 累加（防止同一天有多人提交，需要sum）
+      dailyStats[dateKey].prod += getVal("prod_open");
+      dailyStats[dateKey].qc += getVal("qc_open");
+      dailyStats[dateKey].okr += getVal("okr_open");
+      dailyStats[dateKey].lean += getVal("lean_open");
+      dailyStats[dateKey].ipqc += getVal("ipqc_open");
+    } catch (e) {}
+  });
+
+  return Object.values(dailyStats);
 }

@@ -1,6 +1,9 @@
 "use client";
 
+// ▼▼▼ 核心修复：添加 useEffect 和 useActionState 的引用 ▼▼▼
 import { useState, useActionState, useEffect } from "react";
+// ▲▲▲ 核心修复 ▲▲▲
+
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -8,26 +11,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, PlusCircle, KeyRound, Loader2, Bot } from "lucide-react";
+import { LogOut, PlusCircle, KeyRound, Loader2, Bot, Settings, BarChart3 } from "lucide-react";
 import { logout, changePassword } from "@/app/actions/auth";
 import { generateWeeklySummary } from "@/app/actions/ai";
 import { toast } from "sonner";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface DashboardClientProps {
   submittedDates: Date[];
   forceChangePassword: boolean;
+  isAdmin: boolean;
+  chartData: any[];
 }
 
-export default function DashboardClient({ submittedDates, forceChangePassword }: DashboardClientProps) {
+export default function DashboardClient({ submittedDates, forceChangePassword, isAdmin, chartData }: DashboardClientProps) {
   const router = useRouter();
   const [date, setDate] = useState<Date | undefined>(new Date());
   
-  // AI 总结相关状态
+  // AI 状态
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryContent, setSummaryContent] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
-  // 日历点击逻辑
+  // 日历点击
   const handleDateSelect = (newDate: Date | undefined) => {
     setDate(newDate);
     if (!newDate) return;
@@ -37,7 +43,7 @@ export default function DashboardClient({ submittedDates, forceChangePassword }:
     const day = String(newDate.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
     
-    // 检查是否在已提交列表中 (简单对比年月日)
+    // 检查是否已提交
     const isSubmitted = submittedDates.some(d => 
       d.getDate() === newDate.getDate() && 
       d.getMonth() === newDate.getMonth() && 
@@ -47,25 +53,20 @@ export default function DashboardClient({ submittedDates, forceChangePassword }:
     if (isSubmitted) {
       router.push(`/report/${dateStr}`);
     } else {
-      // 只有点击“今天”才允许新建 (或者你可以放宽这个限制)
-      const todayStr = new Date().toISOString().split('T')[0];
-      // 简单的本地时区修正检查，或者直接允许点击
-      // 这里简单处理：只要没提交，就尝试去新建页，让新建页自己判断或单纯允许补填
       router.push("/report/new");
     }
   };
 
-  // 生成 AI 周报逻辑
+  // 生成 AI 周报
   const handleGenerateSummary = async () => {
     setAiLoading(true);
-    setSummaryOpen(true); // 先打开弹窗
-    setSummaryContent(""); // 清空旧内容
-    
+    setSummaryOpen(true);
+    setSummaryContent("");
     try {
       const text = await generateWeeklySummary();
       setSummaryContent(text);
     } catch (e) {
-      setSummaryContent("生成失败，请稍后重试。");
+      setSummaryContent("生成失败，请重试。");
     } finally {
       setAiLoading(false);
     }
@@ -80,7 +81,13 @@ export default function DashboardClient({ submittedDates, forceChangePassword }:
           数字官工作台
         </div>
         <div className="flex items-center gap-2">
-           {/* 修改密码弹窗 */}
+           {/* 管理员入口 */}
+           {isAdmin && (
+             <Button variant="outline" size="sm" onClick={() => router.push('/admin/template')} className="border-blue-200 text-blue-700 bg-blue-50">
+               <Settings className="w-4 h-4 mr-1" /> 后台管理
+             </Button>
+           )}
+
            <ChangePasswordDialog />
            
            <form action={logout}>
@@ -91,8 +98,8 @@ export default function DashboardClient({ submittedDates, forceChangePassword }:
         </div>
       </nav>
 
-      <main className="container mx-auto p-4 max-w-4xl space-y-6">
-        {/* 顶部概览卡片 */}
+      <main className="container mx-auto p-4 max-w-7xl space-y-6">
+        {/* 概览条 */}
         <section className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">工作概览</h1>
@@ -106,9 +113,9 @@ export default function DashboardClient({ submittedDates, forceChangePassword }:
           </Button>
         </section>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* 左侧：提交日历 */}
-          <Card className="border-0 shadow-sm">
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* 左侧：日历 (1列) */}
+          <Card className="border-0 shadow-sm h-full min-h-[400px]">
             <CardHeader>
               <CardTitle className="text-base text-slate-500">提交日历</CardTitle>
             </CardHeader>
@@ -118,89 +125,70 @@ export default function DashboardClient({ submittedDates, forceChangePassword }:
                 selected={date}
                 onSelect={handleDateSelect}
                 className="rounded-md border-0"
-                modifiers={{
-                  submitted: submittedDates // 绿色标记
-                }}
-                modifiersStyles={{
-                  submitted: { 
-                    color: 'white', 
-                    backgroundColor: '#10b981', 
-                    fontWeight: 'bold',
-                    borderRadius: '100%'
-                  }
-                }}
+                modifiers={{ submitted: submittedDates }}
+                modifiersStyles={{ submitted: { color: 'white', backgroundColor: '#10b981', fontWeight: 'bold', borderRadius: '100%' } }}
               />
             </CardContent>
           </Card>
 
-          {/* 右侧：数据洞察 & AI */}
-          <Card className="bg-slate-900 text-white border-0 shadow-xl flex flex-col justify-between">
-            <div>
-                <CardHeader>
-                <div className="flex items-center gap-2">
-                    <Bot className="w-5 h-5 text-blue-400" />
-                    <CardTitle>智能洞察</CardTitle>
-                </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                <div className="flex justify-between items-center border-b border-slate-700 pb-4">
-                    <span className="text-slate-400">平均UPH (本周)</span>
-                    <span className="text-3xl font-bold font-mono">--</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-slate-700 pb-4">
-                    <span className="text-slate-400">异常关卡率</span>
-                    <span className="text-2xl font-bold text-green-400">0%</span>
-                </div>
-                </CardContent>
-            </div>
-            
-            <div className="p-6 pt-0">
-                <Button 
-                    variant="secondary" 
-                    className="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 border-0 h-12"
-                    onClick={handleGenerateSummary}
-                    disabled={aiLoading}
-                >
-                  {aiLoading ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> DeepSeek 思考中...</>
-                  ) : (
-                    "生成本周总结 (DeepSeek)"
-                  )}
-                </Button>
-            </div>
+          {/* 右侧：数据看板 (2列) */}
+          <Card className="lg:col-span-2 border-0 shadow-sm flex flex-col min-h-[400px]">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-600"/>
+                <CardTitle className="text-base font-bold text-slate-700">关键指标趋势 (近30天)</CardTitle>
+              </div>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                className="bg-purple-100 text-purple-700 hover:bg-purple-200 border-0"
+                onClick={handleGenerateSummary}
+                disabled={aiLoading}
+              >
+                {aiLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1"/> : <Bot className="w-3 h-3 mr-1"/>}
+                AI 周总结
+              </Button>
+            </CardHeader>
+            <CardContent className="flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="date" tick={{fontSize: 12}} stroke="#94a3b8" />
+                  <YAxis tick={{fontSize: 12}} stroke="#94a3b8" />
+                  <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                  <Legend wrapperStyle={{paddingTop: '20px'}} />
+                  {/* 多条折线 */}
+                  <Line type="monotone" dataKey="prod" name="生产头条" stroke="#2563eb" strokeWidth={2} dot={false} activeDot={{r:6}} />
+                  <Line type="monotone" dataKey="qc" name="QC头条" stroke="#dc2626" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="okr" name="OKR" stroke="#16a34a" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="lean" name="精益" stroke="#d97706" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="ipqc" name="IPQC" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
           </Card>
         </div>
       </main>
 
-      {/* AI 总结弹窗 */}
+      {/* 弹窗组件区域 */}
       <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                    <Bot className="w-5 h-5 text-blue-600" />
-                    AI 周报总结
+                    <Bot className="w-5 h-5 text-blue-600" /> AI 周报总结
                 </DialogTitle>
             </DialogHeader>
             <div className="whitespace-pre-wrap text-slate-700 leading-relaxed bg-slate-50 p-6 rounded-lg border text-sm md:text-base">
-                {aiLoading ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-                        <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                        <p>正在分析您的历史日报数据...</p>
-                    </div>
-                ) : (
-                    summaryContent || "未生成内容"
-                )}
+                {aiLoading ? <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-slate-400"/></div> : summaryContent}
             </div>
         </DialogContent>
       </Dialog>
-
-      {/* 强制改密弹窗 (条件渲染) */}
       <ForceChangePasswordDialog open={forceChangePassword} />
     </div>
   );
 }
 
-// === 组件：主动修改密码 ===
+// === 修改密码组件 ===
 function ChangePasswordDialog() {
     const [open, setOpen] = useState(false);
     const [state, action, isPending] = useActionState(changePassword, null);
@@ -229,7 +217,7 @@ function ChangePasswordDialog() {
                         <Input name="oldPassword" type="password" required />
                     </div>
                     <div className="space-y-2">
-                        <Label>新密码 (至少6位)</Label>
+                        <Label>新密码</Label>
                         <Input name="newPassword" type="password" required />
                     </div>
                     <Button type="submit" className="w-full" disabled={isPending}>
@@ -241,7 +229,7 @@ function ChangePasswordDialog() {
     )
 }
 
-// === 组件：强制修改密码 (不可关闭) ===
+// === 强制改密组件 ===
 function ForceChangePasswordDialog({ open }: { open: boolean }) {
     const [state, action, isPending] = useActionState(changePassword, null);
 
@@ -256,7 +244,6 @@ function ForceChangePasswordDialog({ open }: { open: boolean }) {
 
     return (
         <Dialog open={open}>
-            {/* 拦截所有关闭事件 */}
             <DialogContent 
                 className="[&>button]:hidden pointer-events-auto" 
                 onInteractOutside={(e) => e.preventDefault()} 
@@ -264,13 +251,11 @@ function ForceChangePasswordDialog({ open }: { open: boolean }) {
             >
                 <DialogHeader>
                     <DialogTitle className="text-red-600 flex items-center gap-2">
-                        <KeyRound className="w-5 h-5" />
-                        安全警告：请修改初始密码
+                        <KeyRound className="w-5 h-5" /> 安全警告：请修改初始密码
                     </DialogTitle>
                 </DialogHeader>
                 <div className="text-sm text-slate-500 mb-4 bg-red-50 p-3 rounded border border-red-100">
                     为了保障工厂数据安全，首次登录必须将初始密码 (123456) 修改为您的个人密码。
-                    <br/>修改成功后方可使用系统。
                 </div>
                 <form action={action} className="space-y-4">
                     <div className="space-y-2">

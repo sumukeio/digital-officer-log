@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+// 1. 删除这一行：import { Inter } from "next/font/google";
 import "./globals.css";
-// 1. 引入 Toaster 组件
 import { Toaster } from "@/components/ui/sonner";
 
-const inter = Inter({ subsets: ["latin"] });
+// 2. 删除这一行：const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "数字官工作台",
-  manifest: "/manifest.json",
   description: "工厂数字化每日记录系统",
+  manifest: "/manifest.json",
 };
 
 export const viewport = {
   themeColor: "#0f172a",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1, // 禁止缩放，像App一样
+  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -26,9 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body className={inter.className}>
+      {/* 3. 移除 className={inter.className}，直接用系统字体 */}
+      <body className="font-sans antialiased">
         {children}
-        {/* 2. 将 Toaster 放在这里，通常在 children 下方 */}
         <Toaster />
       </body>
     </html>
