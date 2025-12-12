@@ -7,61 +7,120 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// === 1. 用户与权限模型 ===
+// 1. 用户表
 model User {
-  id              String   @id @default(cuid())
-  workId          String   @unique // 工号
-  password        String
-  name            String?
+  id                String        @id @default(cuid())
+  workId            String        @unique
+  name              String?
+  password          String
+  isDefaultPassword Boolean       @default(true)
+  assignedAreas     String?       // "注塑A区,包装C区"
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  roles             Role[]        @relation("RoleToUser")
+  dailyReports      DailyReport[]
   
-  // 多对多关系：一个用户多个角色
-  roles           Role[]   
-  
-  // 该用户可选择的区域配置 (管理员给配置)
-  assignedAreas   String?  @default("注塑A区,注塑B区") 
-  
-  reports         DailyReport[]
-  createdAt       DateTime @default(now())
-  
-  // 新增：是否为默认密码 (默认为 true)
-  isDefaultPassword Boolean @default(true)
+  // ▼▼▼ 新增：关联问题表 (修复之前的 P1012 错误) ▼▼▼
+  issues            Issue[]
+  tasks             Task[]
 }
 
+// 2. 角色表
 model Role {
-  id          String   @id @default(cuid())
-  name        String   @unique // "admin", "officer"
+  id    String @id @default(cuid())
+  name  String @unique // "admin", "officer"
   description String?
-  users       User[]
+  users User[] @relation("RoleToUser")
 }
 
-// === 2. 动态模板模型 (管理员配置) ===
+// 3. 题目模板表
 model Question {
-  id          String   @id @default(cuid())
-  label       String   // 题目内容，如 "生产头条开卡几条？"
-  type        String   // "number", "boolean", "text"
-  category    String   // "生产与质量", "现场与设备"...
-  order       Int      @default(0) // 排序
-  isEnabled   Boolean  @default(true) // 是否启用
-  createdAt   DateTime @default(now())
+  id        String  @id @default(cuid())
+  order     Int     @default(0)
+  category  String  // "一、生产与质量"
+  label     String
+  type      String  // "number", "boolean", "text"
+  isEnabled Boolean @default(true)
 }
 
-// === 3. 日报模型 (改为 JSON 存储答案) ===
+// 4. 日报记录表
 model DailyReport {
   id        String   @id @default(cuid())
-  date      DateTime @default(now())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
+  date      DateTime // 记录日期 (即使是补填也是那天的日期)
+  area      String   // "注塑A区"
+  summary   String?  // 文字总结
+  answers   String   // JSON String: { "qId": { value: 1, remark: "xx", images: [] } }
+  createdAt DateTime @default(now()) // 实际提交时间
+
+  @@index([date])
+  @@index([userId])
+}
+
+// 5. 系统配置表 (Logo, Name)
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique // "app_logo", "app_name"
+  value     String   // URL 或 文本
+  updatedAt DateTime @updatedAt
+}
+
+// 6. 快捷访问链接 (Quick Access)
+model QuickLink {
+  id        String   @id @default(cuid())
+  title     String
+  url       String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+// 7. 问题与解决方案 (Knowledge Base)
+model Issue {
+  id             String   @id @default(cuid())
+  title          String
+  problemDesc    String
+  problemImages  String?  // JSON string: ["url1", "url2"]
   
-  area      String   // 提交时选择的区域
-
-  // 核心改动：不再由几百个字段组成
-  // 而是用一个 JSON 字段存储所有“题目ID -> 答案”的映射
-  // 同时也存一份快照（防止管理员改了题目，历史数据乱了）
-  answers   String   // JSON string: { "questionId1": { val: 10, remark: "...", imgs: [] } }
-
-  summary   String?
-
-  createdAt DateTime @updatedAt
+  solutionDesc   String
+  solutionImages String?  // JSON string: ["url1", "url2"]
   
-  @@unique([userId, date])
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  
+  createdAt      DateTime @default(now())
+}
+
+// 8. 任务看板 (Task Kanban)
+model Task {
+  id          String   @id @default(cuid())
+  content     String   // 任务内容
+  location    String   // 执行地点
+  deadline    DateTime // 截止时间
+  isCompleted Boolean  @default(false) // 是否结束
+  order       Int      @default(0)     // 排序权重
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  logs        TaskLog[]
+}
+
+// 9. 任务日志 (Audit Log)
+model TaskLog {
+  id         String   @id @default(cuid())
+  taskId     String
+  task       Task     @relation(fields: [taskId], references: [id])
+  
+  operatorId String   // 操作人ID (可能是自己，也可能是管理员)
+  operatorName String // 冗余存一个名字方便查
+  
+  action     String   // "CREATE", "UPDATE", "COMPLETE", "MOVE"
+  details    String?  // 详情: "从 A区 移动到 B区"
+  
+  createdAt  DateTime @default(now())
 }

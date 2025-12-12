@@ -23,7 +23,7 @@ export async function sendDailyReminder() {
     const message = {
       msgtype: "markdown",
       markdown: {
-        content: `### 🔔 数字官日报提醒\n\n下午好！今天是 ${now.toLocaleDateString('zh-CN')}。\n\n📊 **今日填报进度：${count} 人已提交**\n\n请各位数字官记得在下班前完成今日工作记录填写。\n\n[点击跳转工作台](https://wdfcn.zeabur.app/)`
+        content: `### 🔔 数字官日报提醒\n\n下午好！今天是 ${now.toLocaleDateString('zh-CN')}。\n\n📊 **今日填报进度：${count} 人已提交**\n\n好官，工作了一天，辛苦啦，该写日报了哦~\n\n[点击跳转工作台](https://wdfcn.zeabur.app/)`
       }
     };
 

@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { uploadToMinIO } from "@/lib/minio"; // 引入上传工具
 
 // =========================================================
 // 1. 用户管理 (User Management)
@@ -132,11 +133,8 @@ export async function deleteQuestion(id: string) {
 // =========================================================
 
 export async function getAnalyticsData() {
-  // 1. 获取所有已启用题目
   const questions = await prisma.question.findMany({ where: { isEnabled: true } });
   
-  // 2. 建立 "关键词 -> 题目ID" 映射
-  // 这样无论题目ID怎么变，只要标题包含关键词就能识别
   const metricsMap: Record<string, string> = {};
   questions.forEach(q => {
     if (q.label.includes("生产头条开卡")) metricsMap["prod_open"] = q.id;
@@ -146,7 +144,6 @@ export async function getAnalyticsData() {
     if (q.label.includes("IPQC点检")) metricsMap["ipqc_open"] = q.id;
   });
 
-  // 3. 获取最近 30 天的数据
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   
@@ -155,11 +152,9 @@ export async function getAnalyticsData() {
     orderBy: { date: 'asc' }
   });
 
-  // 4. 按日期聚合数据
   const dailyStats: Record<string, any> = {};
 
   reports.forEach(r => {
-    // 简单时区处理，取 MM-DD
     const dateKey = new Date(r.date.getTime() + 8 * 3600 * 1000).toISOString().slice(5, 10);
     
     if (!dailyStats[dateKey]) {
@@ -174,7 +169,6 @@ export async function getAnalyticsData() {
         return Number(answers[qId].value) || 0;
       };
 
-      // 累加（防止同一天有多人提交，需要sum）
       dailyStats[dateKey].prod += getVal("prod_open");
       dailyStats[dateKey].qc += getVal("qc_open");
       dailyStats[dateKey].okr += getVal("okr_open");
@@ -184,4 +178,78 @@ export async function getAnalyticsData() {
   });
 
   return Object.values(dailyStats);
+}
+
+// =========================================================
+// 5. 系统配置 (升级版：支持 Logo 文件上传)
+// =========================================================
+
+export async function getSystemConfig() {
+  const configs = await prisma.systemConfig.findMany();
+  const configMap: Record<string, string> = {};
+  configs.forEach(c => configMap[c.key] = c.value);
+  return configMap;
+}
+
+export async function saveSystemConfig(formData: FormData) {
+  const appName = formData.get("app_name") as string;
+  const logoFile = formData.get("app_logo_file") as File; // 获取文件
+
+  // 1. 保存名称
+  if (appName) {
+    await prisma.systemConfig.upsert({
+      where: { key: "app_name" },
+      update: { value: appName },
+      create: { key: "app_name", value: appName }
+    });
+  }
+
+  // 2. 如果上传了新图片，上传到 MinIO 并保存 URL
+  if (logoFile && logoFile.size > 0) {
+    try {
+      const url = await uploadToMinIO(logoFile, "system"); // 存到 system 文件夹
+      await prisma.systemConfig.upsert({
+        where: { key: "app_logo" },
+        update: { value: url },
+        create: { key: "app_logo", value: url }
+      });
+    } catch (e) {
+      console.error("Logo Upload Failed:", e);
+      throw new Error("Logo 上传失败");
+    }
+  }
+
+  revalidatePath("/login");
+  revalidatePath("/admin/system");
+}
+
+// =========================================================
+// 6. 快捷链接管理 (Quick Links)
+// =========================================================
+
+export async function getQuickLinks() {
+  return await prisma.quickLink.findMany({ orderBy: { order: 'asc' } });
+}
+
+export async function saveQuickLink(formData: FormData) {
+  const id = formData.get("id") as string;
+  const title = formData.get("title") as string;
+  const url = formData.get("url") as string;
+
+  if (id) {
+    await prisma.quickLink.update({ where: { id }, data: { title, url } });
+  } else {
+    // 自动放到最后
+    const last = await prisma.quickLink.findFirst({ orderBy: { order: 'desc' } });
+    const newOrder = (last?.order || 0) + 1;
+    await prisma.quickLink.create({ data: { title, url, order: newOrder } });
+  }
+  revalidatePath("/"); // 刷新首页
+  revalidatePath("/admin/system");
+}
+
+export async function deleteQuickLink(id: string) {
+  await prisma.quickLink.delete({ where: { id } });
+  revalidatePath("/");
+  revalidatePath("/admin/system");
 }

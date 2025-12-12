@@ -1,63 +1,45 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { login } from "@/app/actions/auth";
+import { getSystemConfig } from "@/app/actions/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { HardHat } from "lucide-react";
-import { login } from "@/app/actions/auth"; // 引入真实登录
-import { toast } from "sonner";
+import { HardHat, ArrowRight } from "lucide-react";
+import LoginClient from "./login-client"; // 拆分客户端组件以支持 toast
 
-export default function LoginPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-
-  const handleLogin = async (formData: FormData) => {
-    setLoading(true);
-    const res = await login(formData);
-    
-    if (res.success) {
-      toast.success("欢迎回来！");
-      router.push("/"); 
-      router.refresh(); // 强制刷新以更新服务端 Cookie 状态
-    } else {
-      toast.error(res.message);
-      setLoading(false);
-    }
-  };
+// 1. 服务端获取配置
+export default async function LoginPage() {
+  const config = await getSystemConfig();
+  const appName = config.app_name || "数字官日报系统";
+  const appLogo = config.app_logo;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <HardHat className="w-10 h-10 text-primary" />
-            </div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#fafafa] selection:bg-slate-200">
+      
+      {/* 顶部装饰 (可选，极简风通常留白) */}
+      
+      <div className="w-full max-w-[400px] px-6">
+        {/* 2. Logo 区域 */}
+        <div className="mb-10 text-center flex flex-col items-center">
+          <div className="w-16 h-16 bg-white rounded-2xl shadow-[0_2px_12px_-4px_rgba(0,0,0,0.08)] border border-slate-100 flex items-center justify-center mb-6 transition-transform hover:scale-105 duration-300">
+            {appLogo ? (
+                <img src={appLogo} alt="Logo" className="w-10 h-10 object-contain" />
+            ) : (
+                <HardHat className="w-8 h-8 text-slate-900" />
+            )}
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">数字官工作台</CardTitle>
-          <CardDescription>请输入工号和密码登录系统</CardDescription>
-        </CardHeader>
-        <form action={handleLogin}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="workId">工号</Label>
-              <Input id="workId" name="workId" placeholder="例如: 88001" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">密码</Label>
-              <Input id="password" name="password" type="password" required />
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "登录中..." : "登录"}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{appName}</h1>
+          <p className="text-slate-500 text-sm mt-2">Sign in to your workspace</p>
+        </div>
+
+        {/* 3. 登录卡片 (Vercel Style: 无边框，或极细边框，重在排版) */}
+        <LoginClient />
+
+        <div className="mt-8 text-center">
+           <p className="text-xs text-slate-400">
+             © 2025 {appName}. Powered by Factory Hacker.
+           </p>
+        </div>
+      </div>
     </div>
   );
 }
