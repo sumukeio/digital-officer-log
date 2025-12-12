@@ -5,6 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { UserRowActions } from "./user-row-actions";
 import { UserDialog } from "./user-dialog"; 
 
+// ▼▼▼ 核心修复：添加这行，强制动态渲染，跳过构建时查询 ▼▼▼
+export const dynamic = 'force-dynamic';
+// ▲▲▲ 核心修复 ▲▲▲
+
 export default async function UsersPage() {
   const users = await getUsers();
 

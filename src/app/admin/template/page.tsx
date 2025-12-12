@@ -3,6 +3,7 @@ import TemplateList from "./template-list";
 
 export const dynamic = 'force-dynamic'; // 确保每次进入页面都重新获取最新数据，不缓存
 
+
 export default async function TemplatePage() {
   // 1. 在服务端获取所有题目
   const questions = await getQuestions();
