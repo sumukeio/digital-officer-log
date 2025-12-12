@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/app/actions/auth";
 import { revalidatePath } from "next/cache";
 
+// PostgreSQL Int4 最大值 (2,147,483,647)
+const MAX_INT4 = 2147483647;
+
 // 获取所有任务 (按用户分组)
 export async function getBoardData() {
   // 获取所有用户 (作为列)
@@ -35,7 +38,19 @@ export async function createTask(formData: FormData) {
     where: { userId: user.id },
     orderBy: { order: 'desc' }
   });
-  const newOrder = (lastTask?.order || 0) + 1000;
+
+  // 安全计算：如果上一个任务的 order 已经很大，防止 +1000 后溢出
+  let lastOrder = lastTask?.order || 0;
+  // 如果数据库里已有不正常的大数，重置一下逻辑，或者直接取 +1000
+  // 这里做一个简单的保护，如果已经接近溢出，就只 +1
+  const increment = lastOrder > (MAX_INT4 - 2000) ? 1 : 1000;
+  
+  // 再次检查防止溢出
+  let newOrder = lastOrder + increment;
+  if (newOrder > MAX_INT4) {
+    // 极端情况：如果到了最大值，就只能等于最大值（可能会导致排序重叠，但不会报错）
+    newOrder = MAX_INT4; 
+  }
 
   const task = await prisma.task.create({
     data: {
@@ -85,7 +100,7 @@ export async function completeTask(taskId: string) {
   revalidatePath("/tasks");
 }
 
-// 4. 拖拽移动 (核心逻辑)
+// 4. 拖拽移动 (核心逻辑 - 已修复溢出问题)
 export async function moveTask(taskId: string, newUserId: string, newOrder: number) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return;
@@ -101,11 +116,26 @@ export async function moveTask(taskId: string, newUserId: string, newOrder: numb
     throw new Error("只有管理员可以跨区移动任务");
   }
 
+  // --- 修复开始：处理数值溢出 ---
+  let safeOrder = newOrder;
+  
+  // 如果前端传来了毫秒级时间戳 (例如 1765532781668)，它会超过 Int4 的上限 (2147483647)。
+  // 我们将其转换为秒级时间戳，这样就能存进去了 (例如 1765532781)。
+  if (safeOrder > MAX_INT4) {
+    safeOrder = Math.floor(safeOrder / 1000);
+  }
+
+  // 二次检查：如果除以1000后依然比 Int4 大 (极少见，除非你传了天文数字)，强制截断
+  if (safeOrder > MAX_INT4) {
+    safeOrder = MAX_INT4;
+  }
+  // --- 修复结束 ---
+
   await prisma.task.update({
     where: { id: taskId },
     data: {
       userId: newUserId,
-      order: newOrder
+      order: safeOrder // 使用处理过的安全数值
     }
   });
 

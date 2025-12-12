@@ -2,7 +2,6 @@
 
 import { useState, useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-// UI 组件
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,17 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// 图标库
 import { 
     LogOut, PlusCircle, KeyRound, Loader2, Bot, 
     Settings2, BarChart3, User, MapPin, BadgeCheck, 
     UserCircle, LayoutTemplate, BookOpen, ExternalLink,
     ClipboardList 
 } from "lucide-react";
-// Server Actions
 import { logout, changePassword } from "@/app/actions/auth";
 import { generateWeeklySummary } from "@/app/actions/ai";
-// 工具
 import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -42,15 +38,12 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
   const router = useRouter();
   const [date, setDate] = useState<Date | undefined>(new Date());
   
-  // 权限判断
   const isAdmin = currentUser.roles.some(r => r.name === 'admin');
 
-  // AI 状态
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryContent, setSummaryContent] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
-  // 日历点击处理
   const handleDateSelect = (newDate: Date | undefined) => {
     setDate(newDate);
     if (!newDate) return;
@@ -60,7 +53,6 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
     const day = String(newDate.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
     
-    // 检查该日期是否已提交
     const isSubmitted = submittedDates.some(d => 
       d.getDate() === newDate.getDate() && 
       d.getMonth() === newDate.getMonth() && 
@@ -74,7 +66,6 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
     }
   };
 
-  // 生成 AI 周报
   const handleGenerateSummary = async () => {
     setAiLoading(true);
     setSummaryOpen(true);
@@ -90,15 +81,16 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* 顶部导航 */}
+    // ▼▼▼ 全局 select-none: 禁止文字选中，体验更像原生App ▼▼▼
+    <div className="min-h-screen bg-slate-50 flex flex-col select-none">
+      
       <nav className="bg-white border-b px-4 py-3 flex justify-between items-center sticky top-0 z-10 shadow-sm shrink-0">
         <div className="font-bold text-lg flex items-center gap-2 text-slate-800">
           <span className="bg-slate-900 text-white px-2 py-0.5 rounded text-sm font-mono">DO</span>
           <span className="hidden sm:inline">数字官工作台</span>
           
-          {/* ▼▼▼ 任务看板入口 (桌面端) ▼▼▼ */}
           <div className="ml-4 h-6 w-px bg-slate-200 hidden sm:block"></div>
+          {/* 桌面端任务入口 */}
           <Button 
             variant="ghost" 
             size="sm"
@@ -111,7 +103,8 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
         </div>
 
         <div className="flex items-center gap-2">
-           {/* ▼▼▼ 任务看板入口 (移动端图标) ▼▼▼ */}
+           {/* ▼▼▼ 移动端入口优化 ▼▼▼ */}
+           {/* 任务看板 */}
            <Button 
                 variant="ghost" 
                 size="icon" 
@@ -120,8 +113,17 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
             >
                 <ClipboardList className="w-5 h-5" />
             </Button>
+            
+            {/* 知识库 (之前手机端看不到) */}
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => router.push('/knowledge')} 
+                className="sm:hidden text-slate-600"
+            >
+                <BookOpen className="w-5 h-5" />
+            </Button>
 
-           {/* 管理员入口组 */}
            {isAdmin && (
              <>
                 <Button variant="outline" size="sm" onClick={() => router.push('/admin/template')} className="border-blue-200 text-blue-700 bg-blue-50 mr-2 hidden sm:flex">
@@ -130,14 +132,12 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
                 <Button variant="outline" size="sm" onClick={() => router.push('/admin/system')} className="border-slate-200 text-slate-700 hover:bg-slate-50 mr-2 hidden sm:flex">
                     <Settings2 className="w-4 h-4 mr-1" /> 设置
                 </Button>
-                {/* 移动端管理员图标 */}
                 <Button variant="ghost" size="icon" onClick={() => router.push('/admin/system')} className="sm:hidden text-slate-500">
                     <Settings2 className="w-5 h-5" />
                 </Button>
              </>
            )}
 
-           {/* 个人信息弹窗 */}
            <UserProfileDialog user={currentUser} />
            
            <form action={logout}>
@@ -149,7 +149,6 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
       </nav>
 
       <main className="container mx-auto p-4 max-w-7xl space-y-6 flex-1">
-        {/* 概览条 */}
         <section className="flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-xl shadow-sm border gap-4">
           <div className="text-center sm:text-left">
             <h1 className="text-2xl font-bold text-slate-800">
@@ -166,7 +165,6 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
         </section>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* 左侧：日历 */}
           <Card className="border-0 shadow-sm h-full min-h-[400px]">
             <CardHeader>
               <CardTitle className="text-base text-slate-500">提交日历</CardTitle>
@@ -183,7 +181,6 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
             </CardContent>
           </Card>
 
-          {/* 右侧：数据看板 */}
           <Card className="lg:col-span-2 border-0 shadow-sm flex flex-col min-h-[400px]">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div className="flex items-center gap-2">
@@ -191,11 +188,9 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
                 <CardTitle className="text-base font-bold text-slate-700">关键指标趋势</CardTitle>
               </div>
               <div className="flex gap-2">
-                {/* ▼▼▼ 知识库入口 ▼▼▼ */}
                 <Button variant="outline" size="sm" onClick={() => router.push('/knowledge')} className="hidden sm:flex">
                     <BookOpen className="w-4 h-4 mr-1 text-slate-500"/> 知识库
                 </Button>
-                {/* AI 按钮 */}
                 <Button 
                     variant="secondary" 
                     size="sm"
@@ -209,26 +204,27 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
               </div>
             </CardHeader>
             <CardContent className="flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="date" tick={{fontSize: 12}} stroke="#94a3b8" />
-                  <YAxis tick={{fontSize: 12}} stroke="#94a3b8" />
-                  <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                  <Legend wrapperStyle={{paddingTop: '20px'}} />
-                  {/* 数据线配置 */}
-                  <Line type="monotone" dataKey="prod" name="生产头条" stroke="#2563eb" strokeWidth={2} dot={false} activeDot={{r:6}} />
-                  <Line type="monotone" dataKey="qc" name="QC头条" stroke="#dc2626" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="okr" name="OKR" stroke="#16a34a" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="lean" name="精益" stroke="#d97706" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="ipqc" name="IPQC" stroke="#8b5cf6" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+               {/* ▼▼▼ 图表高度修复：包裹一个固定高度 div ▼▼▼ */}
+               <div className="h-[300px] w-full"> 
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="date" tick={{fontSize: 12}} stroke="#94a3b8" />
+                    <YAxis tick={{fontSize: 12}} stroke="#94a3b8" />
+                    <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                    <Legend wrapperStyle={{paddingTop: '20px'}} />
+                    <Line type="monotone" dataKey="prod" name="生产头条" stroke="#2563eb" strokeWidth={2} dot={false} activeDot={{r:6}} />
+                    <Line type="monotone" dataKey="qc" name="QC头条" stroke="#dc2626" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="okr" name="OKR" stroke="#16a34a" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="lean" name="精益" stroke="#d97706" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="ipqc" name="IPQC" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                    </LineChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* ▼▼▼ 底部快捷访问栏 ▼▼▼ */}
         {quickLinks.length > 0 && (
          <section className="pt-6 border-t mt-auto">
             <h3 className="text-xs font-bold text-slate-400 mb-4 uppercase tracking-wider flex items-center gap-2">
@@ -246,7 +242,7 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors shrink-0">
                             <ExternalLink className="w-4 h-4" />
                         </div>
-                        <span className="text-sm font-medium text-slate-700 group-hover:text-blue-700 truncate">
+                        <span className="text-sm font-medium text-slate-700 group-hover:text-blue-700 truncate select-text">
                             {link.title}
                         </span>
                     </a>
@@ -256,7 +252,6 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
         )}
       </main>
 
-      {/* AI 总结弹窗 */}
       <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
@@ -264,19 +259,17 @@ export default function DashboardClient({ submittedDates, currentUser, chartData
                     <Bot className="w-5 h-5 text-blue-600" /> AI 周报总结
                 </DialogTitle>
             </DialogHeader>
-            <div className="whitespace-pre-wrap text-slate-700 leading-relaxed bg-slate-50 p-6 rounded-lg border text-sm md:text-base">
+            <div className="whitespace-pre-wrap text-slate-700 leading-relaxed bg-slate-50 p-6 rounded-lg border text-sm md:text-base select-text">
                 {aiLoading ? <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-slate-400"/></div> : summaryContent}
             </div>
         </DialogContent>
       </Dialog>
       
-      {/* 强制改密弹窗 */}
       <ForceChangePasswordDialog open={currentUser.isDefaultPassword} />
     </div>
   );
 }
 
-// === 组件：个人信息与改密弹窗 ===
 function UserProfileDialog({ user }: { user: DashboardClientProps['currentUser'] }) {
     const [open, setOpen] = useState(false);
     const [state, action, isPending] = useActionState(changePassword, null);
@@ -320,7 +313,7 @@ function UserProfileDialog({ user }: { user: DashboardClientProps['currentUser']
                                 </div>
                                 <div>
                                     <p className="text-sm text-slate-500">姓名</p>
-                                    <p className="font-medium text-slate-900">{user.name || "未设置"}</p>
+                                    <p className="font-medium text-slate-900 select-text">{user.name || "未设置"}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 border p-3 rounded-lg bg-slate-50">
@@ -329,7 +322,7 @@ function UserProfileDialog({ user }: { user: DashboardClientProps['currentUser']
                                 </div>
                                 <div>
                                     <p className="text-sm text-slate-500">工号</p>
-                                    <p className="font-mono font-medium text-slate-900">{user.workId}</p>
+                                    <p className="font-mono font-medium text-slate-900 select-text">{user.workId}</p>
                                 </div>
                             </div>
                             <div className="border p-3 rounded-lg bg-slate-50 space-y-2">
@@ -340,7 +333,7 @@ function UserProfileDialog({ user }: { user: DashboardClientProps['currentUser']
                                 <div className="flex flex-wrap gap-2">
                                     {user.assignedAreas ? (
                                         user.assignedAreas.split(/[,，]/).map(area => (
-                                            <span key={area} className="bg-white border px-2 py-1 rounded text-xs font-medium text-slate-600">
+                                            <span key={area} className="bg-white border px-2 py-1 rounded text-xs font-medium text-slate-600 select-text">
                                                 {area.trim()}
                                             </span>
                                         ))
@@ -356,11 +349,11 @@ function UserProfileDialog({ user }: { user: DashboardClientProps['currentUser']
                         <form action={action} className="space-y-4 py-4">
                             <div className="space-y-2">
                                 <Label>旧密码</Label>
-                                <Input name="oldPassword" type="password" required />
+                                <Input name="oldPassword" type="password" required className="select-text" />
                             </div>
                             <div className="space-y-2">
                                 <Label>新密码</Label>
-                                <Input name="newPassword" type="password" required placeholder="至少 6 位" />
+                                <Input name="newPassword" type="password" required placeholder="至少 6 位" className="select-text" />
                             </div>
                             <Button type="submit" className="w-full" disabled={isPending}>
                                 {isPending ? <Loader2 className="w-4 h-4 animate-spin"/> : "确认修改"}
@@ -373,7 +366,6 @@ function UserProfileDialog({ user }: { user: DashboardClientProps['currentUser']
     )
 }
 
-// === 组件：强制改密弹窗 ===
 function ForceChangePasswordDialog({ open }: { open: boolean }) {
     const [state, action, isPending] = useActionState(changePassword, null);
 
@@ -399,16 +391,16 @@ function ForceChangePasswordDialog({ open }: { open: boolean }) {
                     </DialogTitle>
                 </DialogHeader>
                 <div className="text-sm text-slate-500 mb-4 bg-red-50 p-3 rounded border border-red-100">
-                    为了保障工厂数据安全，首次登录必须将初始密码 (123456) 修改为您的个人密码。
+                    为了您的数据安全，首次登录必须将初始密码 (123456) 修改为您的个人密码。
                 </div>
                 <form action={action} className="space-y-4">
                     <div className="space-y-2">
                         <Label>当前密码 (初始)</Label>
-                        <Input name="oldPassword" type="password" defaultValue="123456" readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed" />
+                        <Input name="oldPassword" type="password" defaultValue="123456" readOnly className="bg-slate-100 text-slate-500 cursor-not-allowed select-text" />
                     </div>
                     <div className="space-y-2">
                         <Label>新密码 (至少6位)</Label>
-                        <Input name="newPassword" type="password" placeholder="请输入新密码" required autoFocus />
+                        <Input name="newPassword" type="password" placeholder="请输入新密码" required autoFocus className="select-text" />
                     </div>
                     <Button type="submit" className="w-full bg-red-600 hover:bg-red-700" disabled={isPending}>
                         {isPending ? "修改中..." : "确认修改并进入系统"}
