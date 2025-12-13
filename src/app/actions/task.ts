@@ -4,19 +4,23 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/app/actions/auth";
 import { revalidatePath } from "next/cache";
 
-// PostgreSQL Int4 最大值 (2,147,483,647)
 const MAX_INT4 = 2147483647;
 
-// 获取所有任务 (按用户分组)
+// ==========================================
+// 1. 数据查询类 (Board, History, Logs)
+// ==========================================
+
+// 获取看板数据 (只展示未完成的任务)
 export async function getBoardData() {
-  // 获取所有用户 (作为列)
   const users = await prisma.user.findMany({
     orderBy: { createdAt: 'asc' },
     select: { id: true, name: true, workId: true }
   });
 
-  // 获取所有任务
   const tasks = await prisma.task.findMany({
+    where: {
+      isCompleted: false // 只查没做完的
+    },
     orderBy: { order: 'asc' },
     include: { user: true }
   });
@@ -24,50 +28,68 @@ export async function getBoardData() {
   return { users, tasks };
 }
 
-// 1. 新建任务
+// ✅ 补回：获取历史任务 (已完成的任务)
+export async function getHistoryTasks() {
+  return await prisma.task.findMany({
+    where: { isCompleted: true },
+    orderBy: { updatedAt: 'desc' }, // 按完成时间倒序
+    include: { user: true },
+    take: 100 // 限制显示最近100条
+  });
+}
+
+// ✅ 补回：获取操作日志
+export async function getTaskLogs() {
+  return await prisma.taskLog.findMany({
+    include: { task: true },
+    orderBy: { createdAt: 'desc' },
+    take: 100
+  });
+}
+
+// ==========================================
+// 2. 操作执行类 (Create, Update, Move, Complete)
+// ==========================================
+
+// 新建任务
 export async function createTask(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
   const content = formData.get("content") as string;
   const location = formData.get("location") as string;
-  const deadlineStr = formData.get("deadline") as string; // 前端传 ISO String
+  const startTimeStr = formData.get("startTime") as string; 
+  const durationStr = formData.get("duration") as string;   
   
-  // 新任务默认排在最后
+  // 查找最后一条任务用于排序
   const lastTask = await prisma.task.findFirst({
-    where: { userId: user.id },
+    where: { userId: user.id, isCompleted: false },
     orderBy: { order: 'desc' }
   });
 
-  // 安全计算：如果上一个任务的 order 已经很大，防止 +1000 后溢出
   let lastOrder = lastTask?.order || 0;
-  // 如果数据库里已有不正常的大数，重置一下逻辑，或者直接取 +1000
-  // 这里做一个简单的保护，如果已经接近溢出，就只 +1
+  // 简单防溢出
   const increment = lastOrder > (MAX_INT4 - 2000) ? 1 : 1000;
-  
-  // 再次检查防止溢出
   let newOrder = lastOrder + increment;
-  if (newOrder > MAX_INT4) {
-    // 极端情况：如果到了最大值，就只能等于最大值（可能会导致排序重叠，但不会报错）
-    newOrder = MAX_INT4; 
-  }
+  if (newOrder > MAX_INT4) newOrder = MAX_INT4;
 
   const task = await prisma.task.create({
     data: {
       content,
       location,
-      deadline: new Date(deadlineStr),
+      startTime: new Date(startTimeStr || new Date()), // 默认当前时间
+      duration: parseInt(durationStr) || 60,           // 默认60分钟
       userId: user.id,
-      order: newOrder
+      order: newOrder,
+      isCompleted: false
     }
   });
 
-  // 记录日志
   await createLog(task.id, user.id, user.name || user.workId, "CREATE", "新建任务");
   revalidatePath("/tasks");
 }
 
-// 2. 修改任务
+// 修改任务
 export async function updateTask(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
@@ -75,32 +97,24 @@ export async function updateTask(formData: FormData) {
   const id = formData.get("id") as string;
   const content = formData.get("content") as string;
   const location = formData.get("location") as string;
-  const deadlineStr = formData.get("deadline") as string;
+  const startTimeStr = formData.get("startTime") as string;
+  const durationStr = formData.get("duration") as string;
 
   await prisma.task.update({
     where: { id },
-    data: { content, location, deadline: new Date(deadlineStr) }
+    data: { 
+      content, 
+      location, 
+      startTime: new Date(startTimeStr),
+      duration: parseInt(durationStr) || 60
+    }
   });
 
-  await createLog(id, user.id, user.name || user.workId, "UPDATE", "修改内容/时间");
+  await createLog(id, user.id, user.name || user.workId, "UPDATE", "修改任务详情");
   revalidatePath("/tasks");
 }
 
-// 3. 结束任务
-export async function completeTask(taskId: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  await prisma.task.update({
-    where: { id: taskId },
-    data: { isCompleted: true }
-  });
-
-  await createLog(taskId, user.id, user.name || user.workId, "COMPLETE", "完成任务");
-  revalidatePath("/tasks");
-}
-
-// 4. 拖拽移动 (核心逻辑 - 已修复溢出问题)
+// 拖拽移动
 export async function moveTask(taskId: string, newUserId: string, newOrder: number) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return;
@@ -109,33 +123,20 @@ export async function moveTask(taskId: string, newUserId: string, newOrder: numb
   if (!task) return;
 
   const isCrossUser = task.userId !== newUserId;
-  
-  // 权限校验：如果是跨用户移动，必须是管理员
-  const isAdmin = currentUser.roles.some(r => r.name === 'admin');
-  if (isCrossUser && !isAdmin) {
-    throw new Error("只有管理员可以跨区移动任务");
-  }
+  // const isAdmin = currentUser.roles.some(r => r.name === 'admin'); 
 
-  // --- 修复开始：处理数值溢出 ---
+  // --- 防溢出逻辑 ---
   let safeOrder = newOrder;
-  
-  // 如果前端传来了毫秒级时间戳 (例如 1765532781668)，它会超过 Int4 的上限 (2147483647)。
-  // 我们将其转换为秒级时间戳，这样就能存进去了 (例如 1765532781)。
   if (safeOrder > MAX_INT4) {
-    safeOrder = Math.floor(safeOrder / 1000);
+    safeOrder = Math.floor(safeOrder / 1000); 
   }
-
-  // 二次检查：如果除以1000后依然比 Int4 大 (极少见，除非你传了天文数字)，强制截断
-  if (safeOrder > MAX_INT4) {
-    safeOrder = MAX_INT4;
-  }
-  // --- 修复结束 ---
+  if (safeOrder > MAX_INT4) safeOrder = MAX_INT4;
 
   await prisma.task.update({
     where: { id: taskId },
     data: {
       userId: newUserId,
-      order: safeOrder // 使用处理过的安全数值
+      order: safeOrder
     }
   });
 
@@ -145,18 +146,29 @@ export async function moveTask(taskId: string, newUserId: string, newOrder: numb
   revalidatePath("/tasks");
 }
 
-// 内部工具：写日志
+// 完成任务
+export async function completeTask(taskId: string) {
+    const user = await getCurrentUser();
+    if (!user) return;
+    
+    await prisma.task.update({
+        where: { id: taskId },
+        data: { isCompleted: true }
+    });
+    
+    await createLog(taskId, user.id, user.name || user.workId, "COMPLETE", "完成任务");
+    
+    // 关键：同时刷新看板和历史页面的缓存
+    revalidatePath("/tasks");
+    revalidatePath("/tasks/history"); 
+}
+
+// ==========================================
+// 3. 内部辅助函数
+// ==========================================
+
 async function createLog(taskId: string, opId: string, opName: string, action: string, details: string) {
   await prisma.taskLog.create({
     data: { taskId, operatorId: opId, operatorName: opName, action, details }
-  });
-}
-
-// 获取日志列表 (供后台使用)
-export async function getTaskLogs() {
-  return await prisma.taskLog.findMany({
-    include: { task: true },
-    orderBy: { createdAt: 'desc' },
-    take: 100 // 只看最近100条
   });
 }

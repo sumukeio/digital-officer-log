@@ -7,67 +7,58 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 1. 用户表
 model User {
   id                String        @id @default(cuid())
   workId            String        @unique
   name              String?
   password          String
   isDefaultPassword Boolean       @default(true)
-  assignedAreas     String?       // "注塑A区,包装C区"
+  assignedAreas     String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
-
-  roles             Role[]        @relation("RoleToUser")
   dailyReports      DailyReport[]
-  
-  // ▼▼▼ 新增：关联问题表 (修复之前的 P1012 错误) ▼▼▼
   issues            Issue[]
   tasks             Task[]
+  roles             Role[]        @relation("RoleToUser")
 }
 
-// 2. 角色表
 model Role {
-  id    String @id @default(cuid())
-  name  String @unique // "admin", "officer"
+  id          String  @id @default(cuid())
+  name        String  @unique
   description String?
-  users User[] @relation("RoleToUser")
+  users       User[]  @relation("RoleToUser")
 }
 
-// 3. 题目模板表
 model Question {
   id        String  @id @default(cuid())
   order     Int     @default(0)
-  category  String  // "一、生产与质量"
+  category  String
   label     String
-  type      String  // "number", "boolean", "text"
+  type      String
   isEnabled Boolean @default(true)
 }
 
-// 4. 日报记录表
 model DailyReport {
   id        String   @id @default(cuid())
   userId    String
+  date      DateTime
+  area      String
+  summary   String?
+  answers   String
+  createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
-  date      DateTime // 记录日期 (即使是补填也是那天的日期)
-  area      String   // "注塑A区"
-  summary   String?  // 文字总结
-  answers   String   // JSON String: { "qId": { value: 1, remark: "xx", images: [] } }
-  createdAt DateTime @default(now()) // 实际提交时间
 
   @@index([date])
   @@index([userId])
 }
 
-// 5. 系统配置表 (Logo, Name)
 model SystemConfig {
   id        String   @id @default(cuid())
-  key       String   @unique // "app_logo", "app_name"
-  value     String   // URL 或 文本
+  key       String   @unique
+  value     String
   updatedAt DateTime @updatedAt
 }
 
-// 6. 快捷访问链接 (Quick Access)
 model QuickLink {
   id        String   @id @default(cuid())
   title     String
@@ -76,51 +67,41 @@ model QuickLink {
   createdAt DateTime @default(now())
 }
 
-// 7. 问题与解决方案 (Knowledge Base)
 model Issue {
   id             String   @id @default(cuid())
   title          String
   problemDesc    String
-  problemImages  String?  // JSON string: ["url1", "url2"]
-  
+  problemImages  String?
   solutionDesc   String
-  solutionImages String?  // JSON string: ["url1", "url2"]
-  
+  solutionImages String?
   userId         String
-  user           User     @relation(fields: [userId], references: [id])
-  
   createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id])
 }
 
-// 8. 任务看板 (Task Kanban)
 model Task {
-  id          String   @id @default(cuid())
-  content     String   // 任务内容
-  location    String   // 执行地点
-  deadline    DateTime // 截止时间
-  isCompleted Boolean  @default(false) // 是否结束
-  order       Int      @default(0)     // 排序权重
-  
+  id          String    @id @default(cuid())
+  content     String
+  location    String
+  deadline    DateTime?
+  isCompleted Boolean   @default(false)
+  order       Int       @default(0)
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
   logs        TaskLog[]
+  startTime   DateTime @default(now()) 
+  duration    Int      @default(60)
 }
 
-// 9. 任务日志 (Audit Log)
 model TaskLog {
-  id         String   @id @default(cuid())
-  taskId     String
-  task       Task     @relation(fields: [taskId], references: [id])
-  
-  operatorId String   // 操作人ID (可能是自己，也可能是管理员)
-  operatorName String // 冗余存一个名字方便查
-  
-  action     String   // "CREATE", "UPDATE", "COMPLETE", "MOVE"
-  details    String?  // 详情: "从 A区 移动到 B区"
-  
-  createdAt  DateTime @default(now())
+  id           String   @id @default(cuid())
+  taskId       String
+  operatorId   String
+  operatorName String
+  action       String
+  details      String?
+  createdAt    DateTime @default(now())
+  task         Task     @relation(fields: [taskId], references: [id])
 }

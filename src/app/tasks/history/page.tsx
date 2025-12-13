@@ -1,85 +1,73 @@
-import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/app/actions/auth";
-import { redirect } from "next/navigation";
+import { getHistoryTasks } from "@/app/actions/task"; 
+import { Card, CardContent } from "@/components/ui/card";
+import { format } from "date-fns";
+import { zhCN } from "date-fns/locale";
+import { CheckCircle2, MapPin, UserCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 
-export const dynamic = 'force-dynamic';
+// 强制动态渲染，保证每次进来都查最新数据
+export const dynamic = 'force-dynamic'; 
 
-export default async function HistoryTasksPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
-  // 计算“今天”的分界线
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  // 查询条件：
-  // 1. 只有“已完成”的任务
-  // 2. 且日期早于今天 (也就是看板里隐藏的那些)
-  const historyTasks = await prisma.task.findMany({
-    where: {
-      isCompleted: true,
-      deadline: {
-        lt: todayStart
-      }
-    },
-    include: {
-      user: true // 获取执行人名字
-    },
-    orderBy: {
-      deadline: 'desc' // 按时间倒序
-    }
-  });
+export default async function HistoryPage() {
+  // 调用 Action 获取数据 (按完成时间倒序，无日期限制)
+  const tasks = await getHistoryTasks();
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 select-none">
       <div className="max-w-5xl mx-auto space-y-6">
+        
+        {/* 顶部导航 */}
         <div className="flex items-center gap-4">
-            <Link href="/tasks"><Button variant="ghost"><ArrowLeft className="mr-2 w-4 h-4"/>返回看板</Button></Link>
-            <h1 className="text-2xl font-bold text-slate-800">历史归档任务</h1>
+            <Link href="/tasks">
+              <Button variant="ghost" className="hover:bg-white/50">
+                <ArrowLeft className="mr-2 w-4 h-4"/>返回看板
+              </Button>
+            </Link>
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+              </div>
+              <h1 className="text-2xl font-bold text-slate-800">历史归档任务</h1>
+            </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow border overflow-hidden">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>截止时间</TableHead>
-                        <TableHead>任务内容</TableHead>
-                        <TableHead>执行人</TableHead>
-                        <TableHead>地点</TableHead>
-                        <TableHead>状态</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {historyTasks.length === 0 ? (
-                        <TableRow>
-                            <TableCell colSpan={5} className="text-center h-24 text-slate-500">
-                                暂无归档任务
-                            </TableCell>
-                        </TableRow>
-                    ) : (
-                        historyTasks.map(task => (
-                            <TableRow key={task.id}>
-                                <TableCell className="font-mono text-slate-500">
-                                    {new Date(task.deadline).toLocaleString('zh-CN')}
-                                </TableCell>
-                                <TableCell className="font-medium select-text">{task.content}</TableCell>
-                                <TableCell>{task.user.name || task.user.workId}</TableCell>
-                                <TableCell className="select-text">{task.location}</TableCell>
-                                <TableCell>
-                                    <Badge variant="secondary" className="bg-slate-100 text-slate-500 flex w-fit items-center gap-1">
-                                        <CheckCircle2 className="w-3 h-3"/> 已完成
-                                    </Badge>
-                                </TableCell>
-                            </TableRow>
-                        ))
-                    )}
-                </TableBody>
-            </Table>
+        {/* 任务列表 */}
+        <div className="grid gap-4">
+          {tasks.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-300 shadow-sm">
+                  <p className="text-gray-400">暂无已完成的任务</p>
+              </div>
+          ) : (
+              tasks.map((task) => (
+              <Card key={task.id} className="group hover:shadow-md transition-all bg-white/80 border-slate-200">
+                  <CardContent className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-1">
+                        {/* 任务内容 */}
+                        <div className="font-medium text-lg text-gray-500 line-through decoration-gray-300">
+                          {task.content}
+                        </div>
+                        
+                        {/* 辅助信息 */}
+                        <div className="flex flex-wrap gap-4 text-sm text-gray-400">
+                            <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded">
+                                <MapPin className="w-3 h-3" /> {task.location || "无地点"}
+                            </span>
+                            <span className="flex items-center gap-1">
+                                <UserCircle className="w-3 h-3" /> 
+                                {task.user?.name || task.user?.workId || "未知"}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* 完成时间 */}
+                    <div className="text-xs font-medium text-gray-400 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap">
+                        完成于: {format(new Date(task.updatedAt), "yyyy年MM月dd日 HH:mm", { locale: zhCN })}
+                    </div>
+                  </CardContent>
+              </Card>
+              ))
+          )}
         </div>
       </div>
     </div>
