@@ -21,7 +21,7 @@ export default async function TasksPage() {
 
   const activeTasks = tasks.filter(task => {
     // 1. 未完成的 -> 必须显示
-    if (!task.isCompleted) return true;
+    if (!task.deadline) return true;
     
     // 2. 已完成的，只有当截止时间是“今天及未来”时才显示
     // 这样能保证用户看到今天的成果，但不被昨天的刷屏
