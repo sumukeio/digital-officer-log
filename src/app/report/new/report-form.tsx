@@ -1,6 +1,6 @@
 "use client";
 
-import { createDailyReport, FormState } from "@/app/actions/submit-report";
+import { createDailyReport } from "@/app/actions/submit-report";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useEffect, useState, ChangeEvent, useActionState } from "react";
+import { useEffect, useState, ChangeEvent, useActionState, useRef, DragEvent, ClipboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, RotateCcw, XCircle, Loader2 } from "lucide-react";
+import { Camera, RotateCcw, XCircle, Loader2, UploadCloud } from "lucide-react";
 import { useFormStatus } from "react-dom";
+import { cn } from "@/lib/utils"; // 假设你有 utils，如果没有可以直接写 class 字符串
 
 // 定义题目类型 (对应数据库)
 type Question = {
@@ -26,9 +27,10 @@ type Question = {
 interface ReportFormProps {
   questions: Question[];
   userAreas: string[]; // 用户可选的区域列表
+  defaultDate?: string;
 }
 
-export default function ReportForm({ questions, userAreas }: ReportFormProps) {
+export default function ReportForm({ questions, userAreas, defaultDate }: ReportFormProps) {
   const router = useRouter();
   const [formDataState, setFormDataState] = useState<Record<string, any>>({});
   const [mounted, setMounted] = useState(false);
@@ -101,7 +103,9 @@ export default function ReportForm({ questions, userAreas }: ReportFormProps) {
         </div>
       </div>
 
+      {/* 传递日期参数给 Server Action (如果有) */}
       <form action={formAction} className="space-y-6 px-1">
+        {defaultDate && <input type="hidden" name="date" value={defaultDate} />}
 
         {/* 区域选择 */}
         <Card>
@@ -225,23 +229,63 @@ function QuestionItem({ question, state, onChange }: { question: Question, state
   )
 }
 
-// === 图片上传组件 (含点击查看大图功能) ===
+// === 图片上传组件 (增强版：支持粘贴、拖拽、点击) ===
 function ImageUploader({ id }: { id: string }) {
   const inputId = `${id}_images`;
-  // 本地状态存储文件和预览图
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false); // 拖拽高亮状态
 
-  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const newFiles = Array.from(e.target.files);
+  // 统一处理文件添加 (过滤非图片)
+  const handleFiles = (files: FileList | File[]) => {
+    const newFiles: File[] = [];
+    Array.from(files).forEach(file => {
+      if (file.type.startsWith('image/')) {
+        newFiles.push(file);
+      } else {
+        toast.warning(`忽略非图片文件: ${file.name}`);
+      }
+    });
+
+    if (newFiles.length === 0) return;
+
     setSelectedFiles(prev => [...prev, ...newFiles]);
-
     const newUrls = newFiles.map(file => URL.createObjectURL(file));
     setPreviewUrls(prev => [...prev, ...newUrls]);
+  };
 
-    // 清空 Input value 允许重复选择同一文件
-    e.target.value = '';
+  // 1. 点击选择
+  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      handleFiles(e.target.files);
+      e.target.value = ''; // 清空以允许重复选择
+    }
+  };
+
+  // 2. 粘贴图片 (Ctrl+V)
+  const handlePaste = (e: ClipboardEvent<HTMLDivElement>) => {
+    if (e.clipboardData.files.length > 0) {
+      e.preventDefault();
+      handleFiles(e.clipboardData.files);
+      toast.info("已粘贴图片");
+    }
+  };
+
+  // 3. 拖拽相关事件
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
+    }
   };
 
   const handleRemoveImage = (indexToRemove: number) => {
@@ -250,14 +294,20 @@ function ImageUploader({ id }: { id: string }) {
     setPreviewUrls(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
-  // 组件卸载清理 URL
   useEffect(() => { return () => { previewUrls.forEach(url => URL.revokeObjectURL(url)); }; }, []);
 
   return (
-    <div className="space-y-2">
-      {/* 隐藏的 Input: 真正用于提交给 Server Action 的数据 
-           利用 ref 手动同步 React State 中的 Files 到 Input.files
-        */}
+    <div 
+      className={cn(
+        "space-y-2 rounded-lg transition-colors p-2 -ml-2 border border-transparent", 
+        isDragging && "bg-blue-50 border-blue-300 border-dashed"
+      )}
+      onPaste={handlePaste}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* 隐藏的 Input: 用于提交数据 */}
       <input
         type="file"
         id={inputId}
@@ -276,33 +326,19 @@ function ImageUploader({ id }: { id: string }) {
 
       {/* 图片预览区域 */}
       {previewUrls.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap mb-2 pl-2">
           {previewUrls.map((url, index) => (
-            <div key={url} className="relative w-20 h-20 rounded-lg border overflow-hidden group bg-slate-100 shadow-sm">
-              {/* 点击查看大图 */}
+            <div key={url} className="relative w-20 h-20 rounded-lg border overflow-hidden group bg-slate-100 shadow-sm shrink-0">
               <Dialog>
                 <DialogTrigger asChild>
-                  <img
-                    src={url}
-                    alt="preview"
-                    className="w-full h-full object-cover cursor-zoom-in hover:opacity-90 transition"
-                  />
+                  <img src={url} alt="preview" className="w-full h-full object-cover cursor-zoom-in hover:opacity-90 transition" />
                 </DialogTrigger>
-                {/* 大图弹窗内容 */}
-                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-0 shadow-none flex justify-center items-center">
-                  <DialogHeader className="sr-only">
-                    <DialogTitle>图片预览</DialogTitle>
-                    <DialogDescription>查看上传的大图</DialogDescription>
-                  </DialogHeader>
+                <DialogContent className="max-w-4xl p-0 bg-transparent border-0 shadow-none flex justify-center items-center">
+                  <DialogHeader className="sr-only"><DialogTitle>预览</DialogTitle><DialogDescription>大图</DialogDescription></DialogHeader>
+                  <img src={url} alt="full" className="max-w-full max-h-[85vh] rounded-md object-contain" />
                 </DialogContent>
               </Dialog>
-
-              {/* 删除按钮 */}
-              <button
-                type="button"
-                onClick={() => handleRemoveImage(index)}
-                className="absolute top-0 right-0 p-1 text-slate-400 hover:text-red-500 bg-white/90 rounded-bl transition opacity-0 group-hover:opacity-100 z-10"
-              >
+              <button type="button" onClick={() => handleRemoveImage(index)} className="absolute top-0 right-0 p-1 text-slate-400 hover:text-red-500 bg-white/90 rounded-bl transition opacity-0 group-hover:opacity-100 z-10">
                 <XCircle className="w-4 h-4" />
               </button>
             </div>
@@ -310,16 +346,21 @@ function ImageUploader({ id }: { id: string }) {
         </div>
       )}
 
-      {/* 添加按钮 */}
-      <div className="flex items-center gap-2">
+      {/* 添加按钮 (视觉上不仅是按钮，也是拖拽提示区) */}
+      <div className="flex items-center gap-2 pl-2">
         <input type="file" id={`${inputId}_trigger`} className="hidden" accept="image/*" multiple onChange={handleFileSelect} />
         <Label
           htmlFor={`${inputId}_trigger`}
           className="cursor-pointer bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded flex items-center gap-2 text-sm text-slate-600 transition border border-slate-200 select-none"
         >
           <Camera className="w-4 h-4" />
-          {selectedFiles.length > 0 ? `继续添加 (${selectedFiles.length})` : "添加图片"}
+          {selectedFiles.length > 0 ? `继续添加 (${selectedFiles.length})` : "粘贴/拖入/选择图片"}
         </Label>
+        
+        {/* 提示文案，只有在没图片时显示，或者一直显示 */}
+        <span className="text-xs text-slate-400 hidden sm:inline-block pointer-events-none">
+          支持 Ctrl+V 粘贴或拖拽上传
+        </span>
       </div>
     </div>
   );

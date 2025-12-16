@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "./auth";
 import { revalidatePath } from "next/cache";
 import { uploadToMinIO } from "@/lib/minio";
+import { redirect } from "next/navigation";
 
 export type FormState = {
   success?: boolean;
@@ -179,4 +180,59 @@ export async function getReportDetail(dateStr: string) {
   });
 
   return { report, questions };
+}
+
+export async function getDayReports(dateStr: string) {
+  const user = await getCurrentUser();
+  if (!user) return { reports: [], questions: [] };
+
+  // 1. 暴力且稳妥的日期范围处理
+  // dateStr 格式应该是 "2025-12-12"
+  // 我们手动拼出当天的 UTC 起止时间，或者利用 date-fns，这里用原生最稳妥
+  const startDate = new Date(`${dateStr}T00:00:00.000Z`);
+  const endDate = new Date(`${dateStr}T23:59:59.999Z`);
+
+  // 为了防止时区偏移导致找不到（比如你是在 UTC+8 存的），
+  // 我们稍微放宽一点范围，或者更简单的：
+  // 既然我们在保存时通常只存日期部分，我们可以假设 date 字段存的是当天的某个时刻。
+  
+  // 修正：我们不假设时区，直接构造一个极其宽的范围，覆盖所有可能的时区偏差
+  // 只要数据库里的 date 也是这一天即可
+  // 但最精准的做法是：相信传入的 dateStr 就是用户看到的日期
+  // 让我们用一个更宽松的查询：前一天23点到第二天23点（覆盖时区差）
+  // 还是走标准路子，但在 dashboard-client 传参时要确保格式正确
+  
+  // 方案 B：如果你的 date 字段存的是纯日期（00:00:00），我们可以试试直接匹配
+  // 但 findMany 不支持直接等于某一天。
+  
+  // 最终修正版逻辑：
+  const start = new Date(dateStr);
+  start.setUTCHours(0, 0, 0, 0); // 强制 UTC 0点
+  
+  const end = new Date(dateStr);
+  end.setUTCHours(23, 59, 59, 999); // 强制 UTC 23点
+
+  console.log(`🔍 [Debug] 查询日报范围: ${start.toISOString()} - ${end.toISOString()} 用户: ${user.name}`);
+
+  const reports = await prisma.dailyReport.findMany({
+    where: {
+      userId: user.id,
+      date: {
+        gte: start,
+        lte: end,
+      },
+    },
+    orderBy: {
+      createdAt: 'asc',
+    }
+  });
+
+  console.log(`✅ [Debug] 查找到 ${reports.length} 条日报`);
+
+  const questions = await prisma.question.findMany({
+    where: { isEnabled: true },
+    orderBy: { order: "asc" },
+  });
+
+  return { reports, questions };
 }

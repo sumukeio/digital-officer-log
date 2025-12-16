@@ -50,7 +50,6 @@ export async function getTaskLogs() {
 // ==========================================
 // 2. 操作执行类 (Create, Update, Move, Complete)
 // ==========================================
-
 // 新建任务
 export async function createTask(formData: FormData) {
   const user = await getCurrentUser();
@@ -61,12 +60,13 @@ export async function createTask(formData: FormData) {
   const startTimeStr = formData.get("startTime") as string; 
   const durationStr = formData.get("duration") as string;   
   
-  // 查找最后一条任务用于排序
+  // 查找最后一条任务用于排序 (保持原有逻辑)
   const lastTask = await prisma.task.findFirst({
     where: { userId: user.id, isCompleted: false },
     orderBy: { order: 'desc' }
   });
 
+  const MAX_INT4 = 2147483647; // 补全这个常量定义，防止报错
   let lastOrder = lastTask?.order || 0;
   // 简单防溢出
   const increment = lastOrder > (MAX_INT4 - 2000) ? 1 : 1000;
@@ -77,8 +77,12 @@ export async function createTask(formData: FormData) {
     data: {
       content,
       location,
-      startTime: new Date(startTimeStr || new Date()), // 默认当前时间
-      duration: parseInt(durationStr) || 60,           // 默认60分钟
+      // ▼▼▼ 修改核心：有值转时间，没值存 null (不再强制默认当前时间) ▼▼▼
+      startTime: startTimeStr ? new Date(startTimeStr) : null,
+      
+      // ▼▼▼ 修改核心：有值转数字，没值存 null (不再强制默认60) ▼▼▼
+      duration: durationStr ? parseInt(durationStr) : null,
+      
       userId: user.id,
       order: newOrder,
       isCompleted: false
@@ -105,14 +109,18 @@ export async function updateTask(formData: FormData) {
     data: { 
       content, 
       location, 
-      startTime: new Date(startTimeStr),
-      duration: parseInt(durationStr) || 60
+      // ▼▼▼ 修改核心：允许清空时间 (设为 null) ▼▼▼
+      startTime: startTimeStr ? new Date(startTimeStr) : null,
+      
+      // ▼▼▼ 修改核心：允许清空时长 (设为 null) ▼▼▼
+      duration: durationStr ? parseInt(durationStr) : null
     }
   });
 
   await createLog(id, user.id, user.name || user.workId, "UPDATE", "修改任务详情");
   revalidatePath("/tasks");
 }
+
 
 // 拖拽移动
 export async function moveTask(taskId: string, newUserId: string, newOrder: number) {

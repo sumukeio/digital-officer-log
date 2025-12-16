@@ -108,9 +108,26 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
   const handleDateSelect = (newDate: Date | undefined) => {
     setDate(newDate);
     if (!newDate) return;
-    const dateStr = `${newDate.getFullYear()}-${String(newDate.getMonth() + 1).padStart(2, '0')}-${String(newDate.getDate()).padStart(2, '0')}`;
-    const isSubmitted = submittedDates.some(d => d.getDate() === newDate.getDate() && d.getMonth() === newDate.getMonth());
-    isSubmitted ? router.push(`/report/${dateStr}`) : router.push("/report/new");
+
+    // 格式化为 YYYY-MM-DD，解决时区问题的关键
+    // 这种写法能保证拿到的是你本地看到的日期，而不是 UTC 的前一天
+    const year = newDate.getFullYear();
+    const month = String(newDate.getMonth() + 1).padStart(2, '0');
+    const day = String(newDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
+    const isSubmitted = submittedDates.some(d =>
+      d.getDate() === newDate.getDate() &&
+      d.getMonth() === newDate.getMonth() &&
+      d.getFullYear() === newDate.getFullYear()
+    );
+
+    if (isSubmitted) {
+      router.push(`/report/${dateStr}`);
+    } else {
+      // ▼▼▼ 修改这里：带上 date 参数 ▼▼▼
+      router.push(`/report/new?date=${dateStr}`);
+    }
   };
 
   const handleGenerateSummary = async () => {
