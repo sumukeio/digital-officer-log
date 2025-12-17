@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { createTask, updateTask, completeTask, moveTask } from "@/app/actions/task";
+import { createTask, updateTask, completeTask, moveTask, deleteTask } from "@/app/actions/task";
 // 引入上一轮创建的组件 (包含倒计时逻辑)
 import { TaskCard } from "@/components/TaskCard";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserCircle, Plus, Edit2, CheckCircle2 } from "lucide-react";
+import { UserCircle, Plus, Edit2, CheckCircle2, Loader2, Trash2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { DraggableDuration } from "@/components/DraggableDuration"; // 引入刚才写的组件
 
@@ -125,9 +125,10 @@ export default function TaskBoard({ users, initialTasks, currentUserId, isAdmin 
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex flex-col md:flex-row h-full p-4 gap-4 overflow-x-auto select-none">
+      {/* ▼▼▼ Bug修复1: 固定高度容器，确保横向滚动条始终可见 ▼▼▼ */}
+      <div className="flex flex-col md:flex-row h-full p-4 gap-4 overflow-x-auto overflow-y-hidden select-none">
         {users.map((u: User) => (
-          <div key={u.id} className="w-full md:w-80 flex-shrink-0 flex flex-col bg-slate-100/80 rounded-xl border max-h-[80vh] md:max-h-full shadow-sm">
+          <div key={u.id} className="w-full md:w-80 flex-shrink-0 flex flex-col bg-slate-100/80 rounded-xl border h-full shadow-sm">
             {/* 列表头部 */}
             <div className="p-3 border-b bg-white rounded-t-xl flex justify-between items-center sticky top-0 z-10">
               <div className="flex items-center gap-2 font-bold text-slate-700">
@@ -167,16 +168,49 @@ export default function TaskBoard({ users, initialTasks, currentUserId, isAdmin 
                               {/* 操作按钮：仅本人可见，悬浮或移动端常驻 */}
                               {task.userId === currentUserId && !task.isCompleted && (
                                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 rounded backdrop-blur-sm p-1">
+                                  {/* 编辑 */}
                                   <TaskDialog task={task} isEdit />
-                                  <form action={async () => {
-                                    // 乐观更新：立刻从列表消失(或变灰)
-                                    const newTasks = tasks.map(t => t.id === task.id ? { ...t, isCompleted: true } : t);
-                                    setTasks(newTasks);
-                                    await completeTask(task.id);
-                                    toast.success("任务完成！");
-                                  }}>
-                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50">
+
+                                  {/* 复制：预填数据的新建任务 */}
+                                  <TaskDialog userId={task.userId} task={task} isCopy />
+
+                                  {/* 完成任务 */}
+                                  <form
+                                    action={async () => {
+                                      // 乐观更新：立刻从列表消失(或变灰)
+                                      const newTasks = tasks.map((t) =>
+                                        t.id === task.id ? { ...t, isCompleted: true } : t
+                                      );
+                                      setTasks(newTasks);
+                                      await completeTask(task.id);
+                                      toast.success("任务完成！");
+                                    }}
+                                  >
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    >
                                       <CheckCircle2 className="w-4 h-4" />
+                                    </Button>
+                                  </form>
+
+                                  {/* 删除任务 */}
+                                  <form
+                                    action={async () => {
+                                      // 直接删除当前任务（仅本人）
+                                      const newTasks = tasks.filter((t) => t.id !== task.id);
+                                      setTasks(newTasks);
+                                      await deleteTask(task.id);
+                                      toast.success("任务已删除");
+                                    }}
+                                  >
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
                                     </Button>
                                   </form>
                                 </div>
@@ -197,17 +231,33 @@ export default function TaskBoard({ users, initialTasks, currentUserId, isAdmin 
   );
 }
 
-// 3. 修改后的弹窗：支持开始时间和时长
-function TaskDialog({ userId, task, isEdit }: { userId?: string, task?: Task, isEdit?: boolean }) {
+// 3. 修改后的弹窗：支持开始时间 / 复制任务
+function TaskDialog({
+  userId,
+  task,
+  isEdit,
+  isCopy,
+}: {
+  userId?: string;
+  task?: Task;
+  isEdit?: boolean;
+  isCopy?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  // ▼▼▼ Bug修复2: 添加提交状态，防止重复提交 ▼▼▼
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isEditMode = !!isEdit;
+  const isCopyMode = !!isCopy;
 
   // --- 状态管理 ---
   // 如果是编辑模式，使用原有值；如果是新建，初始为空字符串
   // 注意：toISOString 会有时区问题，这里为了简单演示，
   // 实际项目中建议用 format(new Date(), "yyyy-MM-dd'T'HH:mm") 处理本地时间
-  const initialStart = task?.startTime
-    ? new Date(task.startTime).toISOString().slice(0, 16)
-    : "";
+  const initialStart =
+    isEditMode && task?.startTime
+      ? new Date(task.startTime).toISOString().slice(0, 16)
+      : "";
 
   const [startTime, setStartTime] = useState(initialStart);
 
@@ -223,31 +273,96 @@ function TaskDialog({ userId, task, isEdit }: { userId?: string, task?: Task, is
       setStartTime(localIso);
     }
   }
+
+  // ▼▼▼ Bug修复2: 表单提交处理函数，添加防重复提交逻辑 ▼▼▼
+  const handleSubmit = async (formData: FormData) => {
+    // 如果正在提交，直接返回
+    if (isSubmitting) return;
+    
+    try {
+      setIsSubmitting(true);
+      if (isEditMode) {
+        await updateTask(formData);
+      } else {
+        await createTask(formData);
+      }
+      setOpen(false);
+      toast.success("保存成功");
+      // 重置表单状态（如果是新建任务）
+      if (!isEdit) {
+        setStartTime("");
+      }
+    } catch (error) {
+      toast.error("保存失败，请重试");
+      console.error("Task save error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog 
+      open={open} 
+      onOpenChange={(newOpen) => {
+        // ▼▼▼ Bug修复2: 提交中不允许关闭弹窗，防止状态混乱 ▼▼▼
+        if (isSubmitting) return;
+        
+        if (!newOpen) {
+          // 关闭弹窗时重置状态
+          setOpen(false);
+          setIsSubmitting(false);
+          // 如果是新建任务，重置表单
+          if (!isEdit) {
+            setStartTime("");
+          }
+        } else {
+          setOpen(newOpen);
+        }
+      }}
+    >
       <DialogTrigger asChild>
-        {isEdit ? (
-          <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:text-blue-500">
+        {isEditMode ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 text-slate-400 hover:text-blue-500"
+            aria-label="编辑任务"
+          >
             <Edit2 className="w-4 h-4" />
           </Button>
+        ) : isCopyMode ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+            aria-label="复制任务"
+          >
+            <Copy className="w-4 h-4" />
+          </Button>
         ) : (
-          <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100"
+            aria-label="新建任务"
+          >
             <Plus className="w-5 h-5" />
           </Button>
         )}
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>{isEdit ? "修改任务" : "新建任务"}</DialogTitle></DialogHeader>
-        <form action={async (formData) => {
-          if (isEdit) await updateTask(formData);
-          else await createTask(formData);
-          setOpen(false);
-          toast.success("保存成功");
-        }} className="space-y-4">
+        <DialogHeader>
+          <DialogTitle>
+            {isEditMode ? "修改任务" : isCopyMode ? "复制任务" : "新建任务"}
+          </DialogTitle>
+        </DialogHeader>
+        <form action={handleSubmit} className="space-y-4">
 
-          {isEdit && <input type="hidden" name="id" value={task?.id} />}
-          {/* 如果是新建任务，自动带入 userId */}
-          {!isEdit && userId && <input type="hidden" name="userId" value={userId} />}
+          {isEditMode && <input type="hidden" name="id" value={task?.id} />}
+          {/* 如果是新建/复制任务，自动带入 userId */}
+          {!isEditMode && userId && (
+            <input type="hidden" name="userId" value={userId} />
+          )}
           <div className="space-y-2">
             <Label>任务内容</Label>
             <Input name="content" required defaultValue={task?.content} placeholder="例如：八部上下线情况排查" />
@@ -285,7 +400,21 @@ function TaskDialog({ userId, task, isEdit }: { userId?: string, task?: Task, is
             </div>
           </div>
 
-          <Button type="submit" className="w-full">{isEdit ? "保存修改" : "立即发布"}</Button>
+          {/* ▼▼▼ Bug修复2: 提交时禁用按钮，显示加载状态 ▼▼▼ */}
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {isEditMode ? "保存中..." : isCopyMode ? "创建中..." : "发布中..."}
+              </>
+            ) : (
+              isEditMode
+                ? "保存修改"
+                : isCopyMode
+                ? "保存为新任务"
+                : "立即发布"
+            )}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>

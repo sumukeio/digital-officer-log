@@ -33,7 +33,8 @@ export default async function TasksPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col select-none">
+    <div className="h-screen bg-slate-100 flex flex-col select-none overflow-hidden">
+      {/* 头部固定，不滚动 */}
       <div className="bg-white border-b px-6 py-3 flex justify-between items-center shadow-sm shrink-0">
         <div className="flex items-center gap-4">
            <Link href="/"><Button variant="ghost" size="icon"><ArrowLeft/></Button></Link>
@@ -55,7 +56,8 @@ export default async function TasksPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      {/* ▼▼▼ Bug修复1: flex-1 自动填充剩余高度，让横向滚动条始终可见 ▼▼▼ */}
+      <div className="flex-1 overflow-hidden min-h-0">
          <TaskBoard 
             users={users} 
             initialTasks={activeTasks} 

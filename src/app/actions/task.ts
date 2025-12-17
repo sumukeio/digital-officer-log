@@ -59,7 +59,27 @@ export async function createTask(formData: FormData) {
   const location = formData.get("location") as string;
   const startTimeStr = formData.get("startTime") as string; 
   const durationStr = formData.get("duration") as string;   
-  
+
+  // ✅ 防重复提交：5 秒内，同一人、同一内容 + 地点 的未完成任务，只保留一条
+  const now = new Date();
+  const fiveSecondsAgo = new Date(now.getTime() - 5 * 1000);
+  const existing = await prisma.task.findFirst({
+    where: {
+      userId: user.id,
+      isCompleted: false,
+      content,
+      location,
+      createdAt: {
+        gte: fiveSecondsAgo,
+      },
+    },
+  });
+
+  if (existing) {
+    // 已经有一条“几乎同时”创建的同名任务了，认为是误触重复提交，直接返回即可
+    return;
+  }
+
   // 查找最后一条任务用于排序 (保持原有逻辑)
   const lastTask = await prisma.task.findFirst({
     where: { userId: user.id, isCompleted: false },
@@ -169,6 +189,37 @@ export async function completeTask(taskId: string) {
     // 关键：同时刷新看板和历史页面的缓存
     revalidatePath("/tasks");
     revalidatePath("/tasks/history"); 
+}
+
+// 删除任务（仅本人或管理员）
+export async function deleteTask(taskId: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+  });
+
+  if (!task) {
+    return;
+  }
+
+  const isOwner = task.userId === user.id;
+  const isAdmin = user.roles.some((r) => r.name === "admin");
+
+  if (!isOwner && !isAdmin) {
+    throw new Error("Forbidden");
+  }
+
+  // 先删除关联的 TaskLog，再删除任务，避免外键约束错误
+  await prisma.$transaction([
+    prisma.taskLog.deleteMany({ where: { taskId } }),
+    prisma.task.delete({ where: { id: taskId } }),
+  ]);
+
+  // 删除操作不再记录到 TaskLog（因为任务已被物理删除）
+  revalidatePath("/tasks");
+  revalidatePath("/tasks/history");
 }
 
 // ==========================================
