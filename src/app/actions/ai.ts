@@ -9,6 +9,20 @@ const openai = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
 });
 
+// 获取默认的 AI Prompt（如果配置中没有，使用默认值）
+async function getAIPrompt(): Promise<string> {
+  const config = await prisma.systemConfig.findUnique({
+    where: { key: "ai_summary_prompt" }
+  });
+  
+  if (config && config.value) {
+    return config.value;
+  }
+  
+  // 默认 Prompt
+  return "你是一名工厂数字化助手。请根据提供的日报数据生成周报。数据格式为\"题目: 值\"。请忽略\"正常/是\"的项目，重点总结：1. 产出数量的统计与趋势；2. 所有标记为\"异常/否\"的项目；3. 备注中的关键问题。Markdown格式。";
+}
+
 export async function generateWeeklySummary() {
   const user = await getCurrentUser();
   if (!user) return "请先登录";
@@ -16,6 +30,7 @@ export async function generateWeeklySummary() {
   // 1. 获取最近 7 天的日报
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const endDate = new Date();
 
   const reports = await prisma.dailyReport.findMany({
     where: {
@@ -80,20 +95,62 @@ ${readableContent}
 `;
   }).join("\n");
 
-  // 3. 调用 AI
+  // 3. 从配置中获取 Prompt
+  const systemPrompt = await getAIPrompt();
+
+  // 4. 调用 AI
+  let summaryContent = "";
   try {
     console.log("正在调用腾讯云 DeepSeek API...");
     const completion = await openai.chat.completions.create({
       messages: [
-        { role: "system", content: "你是一名工厂数字化助手。请根据提供的日报数据生成周报。数据格式为“题目: 值”。请忽略“正常/是”的项目，重点总结：1. 产出数量的统计与趋势；2. 所有标记为“异常/否”的项目；3. 备注中的关键问题。Markdown格式。" },
+        { role: "system", content: systemPrompt },
         { role: "user", content: reportTexts }
       ],
       model: "deepseek-v3",
     });
 
-    return completion.choices[0].message.content || "生成失败";
+    summaryContent = completion.choices[0].message.content || "生成失败";
   } catch (error: any) {
     console.error("AI Error Details:", error);
-    return `AI 服务不可用: ${error.message || "未知错误"}`;
+    summaryContent = `AI 服务不可用: ${error.message || "未知错误"}`;
+    return summaryContent; // 如果AI调用失败，直接返回错误信息，不保存记录
   }
+
+  // 5. 保存总结记录到数据库
+  try {
+    await prisma.aISummary.create({
+      data: {
+        userId: user.id,
+        content: summaryContent,
+        startDate: sevenDaysAgo,
+        endDate: endDate,
+      }
+    });
+  } catch (error) {
+    console.error("保存AI总结记录失败:", error);
+    // 即使保存失败，也返回生成的总结内容
+  }
+
+  return summaryContent;
+}
+
+// 获取当前用户的所有AI总结记录
+export async function getUserAISummaries() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  const summaries = await prisma.aISummary.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      content: true,
+      startDate: true,
+      endDate: true,
+      createdAt: true,
+    }
+  });
+
+  return summaries;
 }

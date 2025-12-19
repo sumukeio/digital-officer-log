@@ -21,6 +21,7 @@ model User {
   issues            Issue[]
   tasks             Task[]
   roles             Role[]        @relation("RoleToUser")
+  aiSummaries      AISummary[]
 }
 
 model Role {
@@ -106,4 +107,17 @@ model TaskLog {
   details      String?
   createdAt    DateTime @default(now())
   task         Task     @relation(fields: [taskId], references: [id])
+}
+
+model AISummary {
+  id          String   @id @default(cuid())
+  userId      String
+  content     String   // AI生成的总结内容
+  startDate   DateTime // 总结的开始日期
+  endDate     DateTime // 总结的结束日期
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
 }

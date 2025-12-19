@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Users, FileText, LayoutDashboard } from "lucide-react";
+import { Users, FileText, LayoutDashboard, Settings } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,6 +17,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin/template">
             <Button variant="ghost" className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800">
               <FileText className="mr-2 h-4 w-4" /> 模板配置
+            </Button>
+          </Link>
+          <Link href="/admin/system">
+            <Button variant="ghost" className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800">
+              <Settings className="mr-2 h-4 w-4" /> 系统配置
             </Button>
           </Link>
           <Link href="/">

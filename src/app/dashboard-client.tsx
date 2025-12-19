@@ -13,11 +13,12 @@ import {
   LogOut, PlusCircle, KeyRound, Loader2, Bot,
   Settings2, BarChart3, User, MapPin, BadgeCheck,
   UserCircle, LayoutTemplate, BookOpen, ExternalLink,
-  ClipboardList, Bell
+  ClipboardList, Bell, History
 } from "lucide-react";
 import { UpdateAnnouncementDialog } from "@/components/UpdateAnnouncement";
 import { logout, changePassword } from "@/app/actions/auth";
 import { generateWeeklySummary } from "@/app/actions/ai";
+import ReactMarkdown from "react-markdown";
 // ▼▼▼ 1. 引入新的 Server Action (注意方法名) ▼▼▼
 import { getUserAreas, getReportTrend } from "@/app/actions/analysis";
 import { toast } from "sonner";
@@ -220,9 +221,14 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
                   <BookOpen className="w-4 h-4 mr-1 text-slate-500" /> 知识库
                 </Button>
 
-                <Button variant="secondary" size="sm" className="bg-purple-100 text-purple-700 hover:bg-purple-200 border-0" onClick={handleGenerateSummary} disabled={aiLoading}>
-                  {aiLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Bot className="w-3 h-3 mr-1" />} AI总结
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" size="sm" className="bg-purple-100 text-purple-700 hover:bg-purple-200 border-0" onClick={handleGenerateSummary} disabled={aiLoading}>
+                    {aiLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Bot className="w-3 h-3 mr-1" />} AI总结
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900" onClick={() => router.push("/ai-summaries")}>
+                    <History className="w-3 h-3 mr-1" /> 历史记录
+                  </Button>
+                </div>
               </div>
             </CardHeader>
 
@@ -301,11 +307,30 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
         )}
       </main>
 
-      {/* AI总结弹窗 (保持不变) */}
+      {/* AI总结弹窗 */}
       <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Bot className="w-5 h-5 text-blue-600" /> AI 周报总结</DialogTitle></DialogHeader>
-          <div className="whitespace-pre-wrap text-slate-700 leading-relaxed bg-slate-50 p-6 rounded-lg border text-sm md:text-base select-text">{aiLoading ? <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div> : summaryContent}</div>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-blue-600" /> AI 周报总结
+              </DialogTitle>
+              <Button variant="ghost" size="sm" onClick={() => { setSummaryOpen(false); router.push("/ai-summaries"); }}>
+                <History className="w-4 h-4 mr-1" /> 查看历史记录
+              </Button>
+            </div>
+          </DialogHeader>
+          <div className="text-slate-700 leading-relaxed bg-slate-50 p-6 rounded-lg border text-sm md:text-base select-text">
+            {aiLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+              </div>
+            ) : (
+              <div className="prose prose-sm max-w-none">
+                <ReactMarkdown>{summaryContent}</ReactMarkdown>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
       <ForceChangePasswordDialog open={currentUser.isDefaultPassword} />

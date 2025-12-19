@@ -200,6 +200,7 @@ export async function getSystemConfig() {
 export async function saveSystemConfig(formData: FormData) {
   const appName = formData.get("app_name") as string;
   const logoFile = formData.get("app_logo_file") as File; // 获取文件
+  const aiPrompt = formData.get("ai_summary_prompt") as string;
 
   // 1. 保存名称
   if (appName) {
@@ -223,6 +224,15 @@ export async function saveSystemConfig(formData: FormData) {
       console.error("Logo Upload Failed:", e);
       throw new Error("Logo 上传失败");
     }
+  }
+
+  // 3. 保存 AI Prompt 配置
+  if (aiPrompt !== null) {
+    await prisma.systemConfig.upsert({
+      where: { key: "ai_summary_prompt" },
+      update: { value: aiPrompt },
+      create: { key: "ai_summary_prompt", value: aiPrompt }
+    });
   }
 
   revalidatePath("/login");

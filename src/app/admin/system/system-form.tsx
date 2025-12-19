@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { saveSystemConfig, saveQuickLink, deleteQuickLink } from "@/app/actions/admin";
 import { toast } from "sonner";
-import { Plus, Trash2, Link as LinkIcon, UploadCloud, Monitor } from "lucide-react";
+import { Plus, Trash2, Link as LinkIcon, UploadCloud, Monitor, Bot } from "lucide-react";
 
 interface QuickLink {
   id: string;
@@ -92,7 +92,46 @@ export default function SystemForm({ config, links }: { config: Record<string, s
         </CardContent>
       </Card>
 
-      {/* 2. 快捷链接管理 */}
+      {/* 2. AI Prompt 配置 */}
+      <Card>
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-purple-600"/> AI 总结 Prompt 配置
+            </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form action={async (formData) => {
+              setLoading(true);
+              try {
+                await saveSystemConfig(formData);
+                toast.success("AI Prompt 配置已更新");
+              } catch(e) {
+                toast.error("保存失败");
+              } finally {
+                setLoading(false);
+              }
+          }} className="space-y-4">
+            <div className="space-y-2">
+              <Label>系统提示词 (System Prompt)</Label>
+              <textarea
+                name="ai_summary_prompt"
+                defaultValue={config.ai_summary_prompt || "你是一名工厂数字化助手。请根据提供的日报数据生成周报。数据格式为\"题目: 值\"。请忽略\"正常/是\"的项目，重点总结：1. 产出数量的统计与趋势；2. 所有标记为\"异常/否\"的项目；3. 备注中的关键问题。Markdown格式。"}
+                placeholder="输入AI总结的系统提示词..."
+                rows={6}
+                className="w-full px-3 py-2 border rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-slate-500">
+                这个提示词将用于指导AI如何生成周报总结。你可以根据需要调整提示词的内容和风格。
+              </p>
+            </div>
+            <Button type="submit" disabled={loading} className="w-full md:w-auto">
+                {loading ? "保存中..." : "保存 Prompt 配置"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* 3. 快捷链接管理 */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
