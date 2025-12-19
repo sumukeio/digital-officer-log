@@ -13,8 +13,9 @@ import {
   LogOut, PlusCircle, KeyRound, Loader2, Bot,
   Settings2, BarChart3, User, MapPin, BadgeCheck,
   UserCircle, LayoutTemplate, BookOpen, ExternalLink,
-  ClipboardList
+  ClipboardList, Bell
 } from "lucide-react";
+import { UpdateAnnouncementDialog } from "@/components/UpdateAnnouncement";
 import { logout, changePassword } from "@/app/actions/auth";
 import { generateWeeklySummary } from "@/app/actions/ai";
 // ▼▼▼ 1. 引入新的 Server Action (注意方法名) ▼▼▼
@@ -162,6 +163,8 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
                <Button variant="ghost" size="icon" onClick={() => router.push('/admin/system')} className="sm:hidden text-slate-500"><Settings2 className="w-5 h-5" /></Button>
               </>
             )}
+            {/* ▼▼▼ 更新公告按钮（右上角）▼▼▼ */}
+            <UpdateAnnouncementDialog />
             <UserProfileDialog user={currentUser} />
             <form action={logout}><Button variant="ghost" size="icon" type="submit"><LogOut className="w-5 h-5" /></Button></form>
          </div>
