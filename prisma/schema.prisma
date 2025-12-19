@@ -36,6 +36,7 @@ model Question {
   category  String
   label     String
   type      String
+  options   String? // JSON 格式：存储选项配置（如 radio/checkbox 的选项列表，或 dynamic_list 的字段配置）
   isEnabled Boolean @default(true)
 }
 

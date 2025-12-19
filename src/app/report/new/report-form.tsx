@@ -8,13 +8,17 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useEffect, useState, ChangeEvent, useActionState, useRef, DragEvent, ClipboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, RotateCcw, XCircle, Loader2, UploadCloud } from "lucide-react";
+import { Camera, RotateCcw, XCircle, Loader2, UploadCloud, Plus, Minus, Image as ImageIcon } from "lucide-react";
+import { createWorker } from "tesseract.js";
 import { useFormStatus } from "react-dom";
 import { cn } from "@/lib/utils"; // 假设你有 utils，如果没有可以直接写 class 字符串
+import { GlobalLoading } from "@/components/GlobalLoading";
 
 // 定义题目类型 (对应数据库)
 type Question = {
@@ -22,6 +26,7 @@ type Question = {
   label: string;
   type: string;
   category: string;
+  options?: string | null;
 };
 
 interface ReportFormProps {
@@ -34,6 +39,7 @@ export default function ReportForm({ questions, userAreas, defaultDate }: Report
   const router = useRouter();
   const [formDataState, setFormDataState] = useState<Record<string, any>>({});
   const [mounted, setMounted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 使用 React 19 的 useActionState 处理服务端 Action
   const [formState, formAction] = useActionState(createDailyReport, null);
@@ -60,11 +66,13 @@ export default function ReportForm({ questions, userAreas, defaultDate }: Report
   // 3. 处理提交结果
   useEffect(() => {
     if (formState?.success) {
+      setIsSubmitting(false);
       toast.success(formState.message);
       // 提交成功清除缓存
       localStorage.removeItem("daily_report_cache");
       router.push("/");
     } else if (formState?.success === false) {
+      setIsSubmitting(false);
       toast.error(formState.message);
     }
   }, [formState, router]);
@@ -92,6 +100,9 @@ export default function ReportForm({ questions, userAreas, defaultDate }: Report
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
+      {/* 提交中全屏加载遮罩 */}
+      {isSubmitting && <GlobalLoading message="提交中..." />}
+      
       {/* 顶部固定栏 */}
       <div className="flex items-center justify-between sticky top-0 bg-slate-50 z-10 py-2 border-b border-slate-200/50 backdrop-blur-sm shadow-sm px-1">
         <h1 className="text-2xl font-bold text-slate-800">填写今日日报</h1>
@@ -104,7 +115,13 @@ export default function ReportForm({ questions, userAreas, defaultDate }: Report
       </div>
 
       {/* 传递日期参数给 Server Action (如果有) */}
-      <form action={formAction} className="space-y-6 px-1">
+      <form 
+        action={async (formData) => {
+          setIsSubmitting(true);
+          await formAction(formData);
+        }} 
+        className="space-y-6 px-1"
+      >
         {defaultDate && <input type="hidden" name="date" value={defaultDate} />}
 
         {/* 区域选择 */}
@@ -183,32 +200,136 @@ function SubmitButton() {
 
 // === 单个题目组件 ===
 function QuestionItem({ question, state, onChange }: { question: Question, state: any, onChange: any }) {
-  const { id, label, type } = question;
+  const { id, label, type, options } = question;
   const val = state[id];
   const remarkVal = state[`${id}_remark`] || "";
+
+  // 解析选项配置
+  const parsedOptions = options ? (() => {
+    try {
+      return JSON.parse(options);
+    } catch {
+      return null;
+    }
+  })() : null;
+
+  // 渲染不同类型的输入控件
+  const renderInput = () => {
+    switch (type) {
+      case 'number':
+        return (
+          <Input
+            id={id} name={id} type="number" min={0} placeholder="0"
+            className="text-right font-mono text-lg"
+            value={val ?? ""}
+            onChange={(e) => onChange(id, e.target.value)}
+          />
+        );
+      
+      case 'boolean':
+        return (
+          <div className="pt-1">
+            <input type="hidden" name={id} value={val === true ? "on" : "off"} />
+            <Switch id={id} checked={val === true} onCheckedChange={(checked) => onChange(id, checked)} />
+          </div>
+        );
+      
+      case 'text':
+        return (
+          <Input 
+            id={id} 
+            name={id} 
+            placeholder="文本" 
+            value={val ?? ""} 
+            onChange={(e) => onChange(id, e.target.value)} 
+          />
+        );
+      
+      case 'radio':
+        const radioOptions = parsedOptions?.options || [];
+        return (
+          <RadioGroup
+            value={val || ""}
+            onValueChange={(value) => onChange(id, value)}
+            className="flex flex-col gap-2"
+          >
+            {radioOptions.map((opt: string, idx: number) => (
+              <div key={idx} className="flex items-center space-x-2">
+                <RadioGroupItem value={opt} id={`${id}_${idx}`} />
+                <Label htmlFor={`${id}_${idx}`} className="cursor-pointer text-sm">{opt}</Label>
+              </div>
+            ))}
+            <input type="hidden" name={id} value={val || ""} />
+          </RadioGroup>
+        );
+      
+      case 'checkbox':
+        const checkboxOptions = parsedOptions?.options || [];
+        const checkboxValues = Array.isArray(val) ? val : [];
+        return (
+          <div className="flex flex-col gap-2">
+            {checkboxOptions.map((opt: string, idx: number) => (
+              <div key={idx} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`${id}_${idx}`}
+                  checked={checkboxValues.includes(opt)}
+                  onCheckedChange={(checked) => {
+                    const newValues = checked
+                      ? [...checkboxValues, opt]
+                      : checkboxValues.filter((v: string) => v !== opt);
+                    onChange(id, newValues);
+                  }}
+                />
+                <Label htmlFor={`${id}_${idx}`} className="cursor-pointer text-sm">{opt}</Label>
+              </div>
+            ))}
+            <input type="hidden" name={id} value={JSON.stringify(checkboxValues)} />
+          </div>
+        );
+      
+      case 'select':
+        const selectOptions = parsedOptions?.options || [];
+        return (
+          <Select value={val || ""} onValueChange={(value) => onChange(id, value)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="请选择" />
+            </SelectTrigger>
+            <SelectContent>
+              {selectOptions.map((opt: string, idx: number) => (
+                <SelectItem key={idx} value={opt}>{opt}</SelectItem>
+              ))}
+            </SelectContent>
+            <input type="hidden" name={id} value={val || ""} />
+          </Select>
+        );
+      
+      case 'dynamic_list':
+        return <DynamicListInput question={question} value={val} onChange={(v) => onChange(id, v)} />;
+      
+      default:
+        return (
+          <Input 
+            id={id} 
+            name={id} 
+            placeholder="文本" 
+            value={val ?? ""} 
+            onChange={(e) => onChange(id, e.target.value)} 
+          />
+        );
+    }
+  };
+
+  // 动态列表和某些类型需要全宽布局
+  const needsFullWidth = type === 'radio' || type === 'checkbox' || type === 'select' || type === 'dynamic_list';
 
   return (
     <div className="border-b pb-6 last:border-0 last:pb-0">
       <div className="flex flex-col gap-3">
         {/* 标题与核心输入控件 */}
-        <div className="flex items-start justify-between gap-4">
+        <div className={cn("flex items-start gap-4", needsFullWidth ? "flex-col" : "justify-between")}>
           <Label htmlFor={id} className="text-base leading-6 flex-1 pt-2 text-slate-700">{label}</Label>
-          <div className="w-32 shrink-0 flex justify-end">
-            {type === 'number' ? (
-              <Input
-                id={id} name={id} type="number" min={0} placeholder="0"
-                className="text-right font-mono text-lg"
-                value={val ?? ""}
-                onChange={(e) => onChange(id, e.target.value)}
-              />
-            ) : type === 'boolean' ? (
-              <div className="pt-1">
-                <input type="hidden" name={id} value={val === true ? "on" : "off"} />
-                <Switch id={id} checked={val === true} onCheckedChange={(checked) => onChange(id, checked)} />
-              </div>
-            ) : (
-              <Input id={id} name={id} placeholder="文本" value={val ?? ""} onChange={(e) => onChange(id, e.target.value)} />
-            )}
+          <div className={cn(needsFullWidth ? "w-full" : "w-32 shrink-0 flex justify-end")}>
+            {renderInput()}
           </div>
         </div>
 
@@ -227,6 +348,312 @@ function QuestionItem({ question, state, onChange }: { question: Question, state
       </div>
     </div>
   )
+}
+
+// === 动态列表组件 ===
+function DynamicListInput({ question, value, onChange }: { question: Question, value: any, onChange: (value: any) => void }) {
+  const parsedOptions = question.options ? (() => {
+    try {
+      return JSON.parse(question.options);
+    } catch {
+      return null;
+    }
+  })() : null;
+
+  const fields = parsedOptions?.fields || [
+    { label: "产品名称", key: "productName" },
+    { label: "规格", key: "spec" }
+  ];
+
+  // 初始化数据：如果 value 为空，默认有一行空数据
+  const [rows, setRows] = useState(() => {
+    if (value) {
+      try {
+        // value 可能是字符串（JSON）或已经是数组
+        const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch {
+        // 解析失败，使用默认值
+      }
+    }
+    return [fields.reduce((acc: any, f: any) => ({ ...acc, [f.key]: "" }), {})];
+  });
+
+  // OCR 相关状态
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 当 rows 变化时，同步到父组件
+  useEffect(() => {
+    onChange(rows);
+  }, [rows]);
+
+  const addRow = () => {
+    const newRow = fields.reduce((acc: any, f: any) => ({ ...acc, [f.key]: "" }), {});
+    setRows([...rows, newRow]);
+  };
+
+  const removeRow = (index: number) => {
+    if (rows.length > 1) {
+      setRows(rows.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateRow = (index: number, fieldKey: string, fieldValue: string) => {
+    const newRows = [...rows];
+    newRows[index] = { ...newRows[index], [fieldKey]: fieldValue };
+    setRows(newRows);
+  };
+
+  // 将数据序列化为 JSON 字符串，用于表单提交
+  useEffect(() => {
+    const hiddenInput = document.querySelector(`input[name="${question.id}"]`) as HTMLInputElement;
+    if (hiddenInput) {
+      hiddenInput.value = JSON.stringify(rows);
+    }
+  }, [rows, question.id]);
+
+  // OCR 识别函数
+  const recognizeImage = async (imageFile: File) => {
+    setOcrLoading(true);
+    setOcrProgress(0);
+
+    try {
+      // 显示提示：首次使用需要下载语言包（约 10-20MB）
+      if (!localStorage.getItem('tesseract_initialized')) {
+        toast.info("首次使用 OCR，正在下载语言包，请稍候...");
+      }
+
+      const worker = await createWorker('chi_sim+eng', 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            setOcrProgress(Math.round(m.progress * 100));
+          } else if (m.status === 'loading language') {
+            setOcrProgress(10); // 语言包加载中
+          } else if (m.status === 'initializing tesseract') {
+            setOcrProgress(5); // 初始化中
+          }
+        },
+      });
+
+      localStorage.setItem('tesseract_initialized', 'true');
+      const { data: { text } } = await worker.recognize(imageFile);
+      await worker.terminate();
+
+      // 解析识别结果
+      const parsedData = parseOCRText(text, fields);
+      
+      if (parsedData.length > 0) {
+        // 如果当前只有一行空数据，替换它；否则追加
+        const currentRows = rows.length === 1 && Object.values(rows[0]).every(v => !v) 
+          ? [] 
+          : [...rows];
+        setRows([...currentRows, ...parsedData]);
+        toast.success(`成功识别 ${parsedData.length} 条数据`);
+      } else {
+        toast.warning("未能识别出有效数据，请检查图片质量或手动输入");
+      }
+    } catch (error) {
+      console.error("OCR Error:", error);
+      toast.error("图片识别失败，请重试或手动输入");
+    } finally {
+      setOcrLoading(false);
+      setOcrProgress(0);
+    }
+  };
+
+  // 解析 OCR 文本，提取字段-值对
+  const parseOCRText = (text: string, fields: any[]): any[] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const results: any[] = [];
+
+    // 策略1: 尝试按行解析，每行包含所有字段值（用空格或制表符分隔）
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      // 尝试分割：空格、制表符、多个空格
+      const parts = trimmed.split(/\s+/).filter(p => p.trim());
+      
+      if (parts.length >= fields.length) {
+        const row: any = {};
+        fields.forEach((field, index) => {
+          row[field.key] = parts[index] || "";
+        });
+        results.push(row);
+      } else if (parts.length > 0) {
+        // 如果字段数不够，至少填充第一个字段
+        const row: any = {};
+        fields.forEach((field, index) => {
+          row[field.key] = index === 0 ? parts.join(' ') : "";
+        });
+        results.push(row);
+      }
+    }
+
+    // 策略2: 如果策略1没结果，尝试查找字段名模式
+    if (results.length === 0) {
+      const fieldLabels = fields.map(f => f.label);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const row: any = {};
+        let hasData = false;
+
+        fields.forEach((field, fieldIndex) => {
+          // 尝试找到字段名后面的值
+          const labelIndex = line.indexOf(fieldLabels[fieldIndex]);
+          if (labelIndex !== -1) {
+            const afterLabel = line.substring(labelIndex + fieldLabels[fieldIndex].length).trim();
+            // 提取字段名后的内容（直到下一个字段名或行尾）
+            let value = afterLabel;
+            if (fieldIndex < fields.length - 1) {
+              const nextLabelIndex = line.indexOf(fieldLabels[fieldIndex + 1]);
+              if (nextLabelIndex !== -1) {
+                value = line.substring(labelIndex + fieldLabels[fieldIndex].length, nextLabelIndex).trim();
+              }
+            }
+            row[field.key] = value || "";
+            if (value) hasData = true;
+          }
+        });
+
+        if (hasData) {
+          results.push(row);
+        }
+      }
+    }
+
+    return results;
+  };
+
+  // 处理文件选择
+  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      recognizeImage(file);
+    } else {
+      toast.error("请选择图片文件");
+    }
+    // 重置 input，允许重复选择同一文件
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // 处理粘贴事件
+  useEffect(() => {
+    const handlePaste = async (e: Event) => {
+      const clipboardEvent = e as ClipboardEvent;
+      const items = clipboardEvent.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          clipboardEvent.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            await recognizeImage(file);
+          }
+          break;
+        }
+      }
+    };
+
+    // 只在动态列表区域监听粘贴事件
+    const container = document.querySelector(`input[name="${question.id}"]`)?.closest('.w-full');
+    if (container) {
+      container.addEventListener('paste', handlePaste);
+      return () => {
+        container.removeEventListener('paste', handlePaste);
+      };
+    }
+  }, [question.id, fields]);
+
+  return (
+    <div className="w-full space-y-2">
+      <input type="hidden" name={question.id} value={JSON.stringify(rows)} />
+      
+      {/* OCR 图片识别区域 */}
+      <div className="border-2 border-dashed border-slate-300 rounded-lg p-3 bg-slate-50/50 hover:border-slate-400 transition-colors">
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+            id={`ocr-input-${question.id}`}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={ocrLoading}
+            className="shrink-0"
+          >
+            <ImageIcon className="w-4 h-4 mr-2" />
+            {ocrLoading ? "识别中..." : "上传图片识别"}
+          </Button>
+          <span className="text-xs text-slate-500 flex-1">
+            {ocrLoading 
+              ? `正在识别... ${ocrProgress}%` 
+              : "支持粘贴图片 (Ctrl+V) 或点击上传，自动识别并填充数据"}
+          </span>
+        </div>
+        {ocrLoading && (
+          <div className="mt-2">
+            <div className="w-full bg-slate-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${ocrProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 数据行列表 */}
+      {rows.map((row, rowIndex) => (
+        <div key={rowIndex} className="flex gap-2 items-center border rounded-md p-2 bg-white">
+          {fields.map((field: any, fieldIndex: number) => (
+            <Input
+              key={fieldIndex}
+              placeholder={field.label}
+              value={row[field.key] || ""}
+              onChange={(e) => updateRow(rowIndex, field.key, e.target.value)}
+              className="flex-1"
+            />
+          ))}
+          {rowIndex === 0 ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={addRow}
+              className="shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={() => removeRow(rowIndex)}
+              className="shrink-0 text-red-500 hover:text-red-600"
+            >
+              <Minus className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // === 图片上传组件 (增强版：支持粘贴、拖拽、点击) ===

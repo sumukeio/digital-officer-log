@@ -73,3 +73,39 @@ export async function getCurrentUser() {
   
   return user;
 }
+
+// 5. 重置密码（忘记密码功能）
+export async function resetPassword(formData: FormData) {
+  const workId = formData.get("workId") as string;
+  const name = formData.get("name") as string;
+
+  if (!workId || !name) {
+    return { success: false, message: "请填写工号和姓名" };
+  }
+
+  // 验证工号和姓名是否匹配
+  const user = await prisma.user.findUnique({ where: { workId } });
+
+  if (!user) {
+    return { success: false, message: "工号不存在" };
+  }
+
+  // 验证姓名（不区分大小写，去除空格）
+  const userName = (user.name || "").trim().toLowerCase();
+  const inputName = name.trim().toLowerCase();
+
+  if (userName !== inputName) {
+    return { success: false, message: "工号与姓名不匹配，验证失败" };
+  }
+
+  // 验证通过，重置密码为初始密码
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { 
+      password: "123456",
+      isDefaultPassword: true 
+    }
+  });
+
+  return { success: true, message: "密码已重置为初始密码 123456" };
+}

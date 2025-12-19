@@ -62,6 +62,14 @@ export async function createDailyReport(prevState: FormState, formData: FormData
             // 类型转换
             if (type === 'number') value = Number(val);
             if (type === 'boolean') value = val === 'on';
+            if (type === 'checkbox' || type === 'dynamic_list') {
+                // checkbox 和 dynamic_list 的值是 JSON 字符串
+                try {
+                    value = JSON.parse(val as string);
+                } catch {
+                    value = val;
+                }
+            }
 
             // 获取备注
             const remark = formData.get(`${key}_remark`) as string;

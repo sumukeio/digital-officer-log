@@ -87,17 +87,23 @@ export async function saveQuestion(formData: FormData) {
   const label = formData.get("label") as string;
   const type = formData.get("type") as string;
   const category = formData.get("category") as string;
+  const options = formData.get("options") as string | null;
+
+  const data: any = { label, type, category };
+  if (options) {
+    data.options = options;
+  }
 
   if (id) {
     await prisma.question.update({
       where: { id },
-      data: { label, type, category }
+      data
     });
   } else {
     const last = await prisma.question.findFirst({ orderBy: { order: 'desc' } });
     const newOrder = (last?.order || 0) + 1;
     await prisma.question.create({
-      data: { label, type, category, order: newOrder, isEnabled: true }
+      data: { ...data, order: newOrder, isEnabled: true }
     });
   }
   revalidatePath("/admin/template");

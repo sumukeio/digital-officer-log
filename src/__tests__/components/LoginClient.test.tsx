@@ -41,7 +41,7 @@ describe('LoginClient Component', () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText(/工号/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/密码/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/^密码$/i)).toBeInTheDocument() // 精确匹配，避免匹配到"记住密码"
       expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument()
     })
   })
@@ -121,7 +121,7 @@ describe('LoginClient Component', () => {
     })
 
     const workIdInput = screen.getByLabelText(/工号/i)
-    const passwordInput = screen.getByLabelText(/密码/i)
+    const passwordInput = screen.getByLabelText(/^密码$/i) // 精确匹配，避免匹配到"记住密码"
     const submitButton = screen.getByRole('button', { name: /continue/i })
 
     await user.type(workIdInput, '2020010')
@@ -157,7 +157,7 @@ describe('LoginClient Component', () => {
     })
 
     const workIdInput = screen.getByLabelText(/工号/i)
-    const passwordInput = screen.getByLabelText(/密码/i)
+    const passwordInput = screen.getByLabelText(/^密码$/i) // 精确匹配，避免匹配到"记住密码"
     const submitButton = screen.getByRole('button', { name: /continue/i })
 
     await user.type(workIdInput, '2020010')

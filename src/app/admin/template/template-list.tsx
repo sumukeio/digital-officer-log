@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { updateQuestion, reorderQuestions, saveQuestion, deleteQuestion } from "@/app/actions/admin";
 import { Card } from "@/components/ui/card";
@@ -19,6 +19,7 @@ interface Question {
   label: string;
   type: string;
   category: string;
+  options?: string | null; // JSON 格式的选项配置
   isEnabled: boolean;
   order: number;
 }
@@ -119,9 +120,55 @@ export default function TemplateList({ initialQuestions }: { initialQuestions: Q
 function QuestionDialog({ question }: { question?: Question }) {
     const [open, setOpen] = useState(false);
     const isEdit = !!question;
+
+    // 解析选项配置
+    const getInitialOptions = () => {
+        if (question?.options) {
+            try {
+                const parsed = JSON.parse(question.options);
+                if (parsed.options && Array.isArray(parsed.options)) {
+                    return parsed.options.join("\n");
+                }
+            } catch {}
+        }
+        return "";
+    };
+
+    const getInitialDynamicFields = () => {
+        if (question?.options) {
+            try {
+                const parsed = JSON.parse(question.options);
+                if (parsed.fields && Array.isArray(parsed.fields)) {
+                    return parsed.fields;
+                }
+            } catch {}
+        }
+        return [{ label: "产品名称", key: "productName" }, { label: "规格", key: "spec" }];
+    };
+
+    const [questionType, setQuestionType] = useState(question?.type || "number");
+    const [optionsText, setOptionsText] = useState(getInitialOptions());
+    const [dynamicFields, setDynamicFields] = useState(getInitialDynamicFields());
+
+    // 当对话框打开且是编辑模式时，重新初始化状态
+    useEffect(() => {
+        if (open && question) {
+            setQuestionType(question.type || "number");
+            setOptionsText(getInitialOptions());
+            setDynamicFields(getInitialDynamicFields());
+        }
+    }, [open, question]);
     
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(newOpen) => {
+            setOpen(newOpen);
+            if (!newOpen) {
+                // 重置状态
+                setQuestionType(question?.type || "number");
+                setOptionsText(getInitialOptions());
+                setDynamicFields(getInitialDynamicFields());
+            }
+        }}>
             <DialogTrigger asChild>
                 {isEdit ? (
                     <Button variant="ghost" size="icon"><Pencil className="w-4 h-4 text-slate-500" /></Button>
@@ -129,13 +176,27 @@ function QuestionDialog({ question }: { question?: Question }) {
                     <Button><Plus className="w-4 h-4 mr-2"/>新增题目</Button>
                 )}
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>{isEdit ? "编辑题目" : "新增题目"}</DialogTitle></DialogHeader>
                 <form action={async (formData) => {
+                    // 根据类型构建 options JSON
+                    let optionsJson = null;
+                    if (questionType === "radio" || questionType === "checkbox" || questionType === "select") {
+                        const options = optionsText.split("\n").filter(o => o.trim()).map(o => o.trim());
+                        if (options.length > 0) {
+                            optionsJson = JSON.stringify({ options });
+                        }
+                    } else if (questionType === "dynamic_list") {
+                        optionsJson = JSON.stringify({ fields: dynamicFields });
+                    }
+                    
+                    if (optionsJson) {
+                        formData.append("options", optionsJson);
+                    }
+                    
                     await saveQuestion(formData);
                     setOpen(false);
                     toast.success("保存成功");
-                    // 最好在这里触发一次列表刷新，或者利用 router.refresh()
                     window.location.reload(); 
                 }} className="space-y-4">
                     <input type="hidden" name="id" value={question?.id || ""} />
@@ -160,16 +221,73 @@ function QuestionDialog({ question }: { question?: Question }) {
                         </div>
                         <div className="space-y-2">
                             <Label>类型</Label>
-                            <Select name="type" defaultValue={question?.type || "number"}>
+                            <Select 
+                                name="type" 
+                                value={questionType}
+                                onValueChange={setQuestionType}
+                            >
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="number">数字 (计数)</SelectItem>
                                     <SelectItem value="boolean">开关 (是/否)</SelectItem>
                                     <SelectItem value="text">文本</SelectItem>
+                                    <SelectItem value="radio">单选框</SelectItem>
+                                    <SelectItem value="checkbox">多选框</SelectItem>
+                                    <SelectItem value="select">下拉框</SelectItem>
+                                    <SelectItem value="dynamic_list">动态列表</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
+
+                    {/* 选项配置：radio、checkbox、select */}
+                    {(questionType === "radio" || questionType === "checkbox" || questionType === "select") && (
+                        <div className="space-y-2">
+                            <Label>选项列表（每行一个）</Label>
+                            <textarea
+                                className="w-full min-h-[120px] p-2 border rounded-md text-sm"
+                                value={optionsText}
+                                onChange={(e) => setOptionsText(e.target.value)}
+                                placeholder="选项1&#10;选项2&#10;选项3"
+                            />
+                            <p className="text-xs text-slate-500">每行输入一个选项</p>
+                        </div>
+                    )}
+
+                    {/* 动态列表配置 */}
+                    {questionType === "dynamic_list" && (
+                        <div className="space-y-2">
+                            <Label>字段配置</Label>
+                            <div className="space-y-2 border rounded-md p-3 bg-slate-50">
+                                {dynamicFields.map((field, index) => (
+                                    <div key={index} className="flex gap-2 items-center">
+                                        <Input
+                                            placeholder="字段名称"
+                                            value={field.label}
+                                            onChange={(e) => {
+                                                const newFields = [...dynamicFields];
+                                                newFields[index].label = e.target.value;
+                                                setDynamicFields(newFields);
+                                            }}
+                                            className="flex-1"
+                                        />
+                                        <Input
+                                            placeholder="字段标识（英文）"
+                                            value={field.key}
+                                            onChange={(e) => {
+                                                const newFields = [...dynamicFields];
+                                                newFields[index].key = e.target.value;
+                                                setDynamicFields(newFields);
+                                            }}
+                                            className="flex-1"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-xs text-slate-500">配置动态列表的字段名称和标识</p>
+                        </div>
+                    )}
+
                     <Button type="submit" className="w-full">保存</Button>
                 </form>
             </DialogContent>
