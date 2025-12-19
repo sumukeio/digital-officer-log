@@ -24,6 +24,11 @@ interface Question {
   order: number;
 }
 
+interface DynamicField {
+  label: string;
+  key: string;
+}
+
 export default function TemplateList({ initialQuestions }: { initialQuestions: Question[] }) {
   const [questions, setQuestions] = useState(initialQuestions);
 
@@ -38,7 +43,7 @@ export default function TemplateList({ initialQuestions }: { initialQuestions: Q
     setQuestions(items);
 
     // 2. 提交到后端
-    const newOrderIds = items.map(q => q.id);
+    const newOrderIds = items.map((q: Question) => q.id);
     try {
         await reorderQuestions(newOrderIds);
         toast.success("顺序已更新");
@@ -85,7 +90,7 @@ export default function TemplateList({ initialQuestions }: { initialQuestions: Q
                             checked={q.isEnabled}
                             onCheckedChange={async (checked) => {
                                 // 乐观更新
-                                setQuestions(qs => qs.map(item => item.id === q.id ? {...item, isEnabled: checked} : item));
+                                setQuestions(qs => qs.map((item: Question) => item.id === q.id ? {...item, isEnabled: checked} : item));
                                 await updateQuestion(q.id, { isEnabled: checked });
                             }}
                          />
@@ -97,7 +102,7 @@ export default function TemplateList({ initialQuestions }: { initialQuestions: Q
                          <Button variant="ghost" size="icon" onClick={async () => {
                              if(confirm("确定删除吗？")) {
                                  await deleteQuestion(q.id);
-                                 setQuestions(qs => qs.filter(item => item.id !== q.id));
+                                 setQuestions(qs => qs.filter((item: Question) => item.id !== q.id));
                              }
                          }}>
                             <Trash2 className="w-4 h-4 text-red-400" />
@@ -134,12 +139,12 @@ function QuestionDialog({ question }: { question?: Question }) {
         return "";
     };
 
-    const getInitialDynamicFields = () => {
+    const getInitialDynamicFields = (): DynamicField[] => {
         if (question?.options) {
             try {
                 const parsed = JSON.parse(question.options);
                 if (parsed.fields && Array.isArray(parsed.fields)) {
-                    return parsed.fields;
+                    return parsed.fields as DynamicField[];
                 }
             } catch {}
         }
@@ -148,7 +153,7 @@ function QuestionDialog({ question }: { question?: Question }) {
 
     const [questionType, setQuestionType] = useState(question?.type || "number");
     const [optionsText, setOptionsText] = useState(getInitialOptions());
-    const [dynamicFields, setDynamicFields] = useState(getInitialDynamicFields());
+    const [dynamicFields, setDynamicFields] = useState<DynamicField[]>(getInitialDynamicFields());
 
     // 当对话框打开且是编辑模式时，重新初始化状态
     useEffect(() => {
@@ -259,7 +264,7 @@ function QuestionDialog({ question }: { question?: Question }) {
                         <div className="space-y-2">
                             <Label>字段配置</Label>
                             <div className="space-y-2 border rounded-md p-3 bg-slate-50">
-                                {dynamicFields.map((field, index) => (
+                                {dynamicFields.map((field: DynamicField, index: number) => (
                                     <div key={index} className="flex gap-2 items-center">
                                         <Input
                                             placeholder="字段名称"

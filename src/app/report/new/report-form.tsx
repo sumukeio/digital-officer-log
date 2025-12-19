@@ -545,15 +545,14 @@ function DynamicListInput({ question, value, onChange }: { question: Question, v
 
   // 处理粘贴事件
   useEffect(() => {
-    const handlePaste = async (e: Event) => {
-      const clipboardEvent = e as ClipboardEvent;
-      const items = clipboardEvent.clipboardData?.items;
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
       if (!items) return;
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         if (item.type.startsWith('image/')) {
-          clipboardEvent.preventDefault();
+          e.preventDefault();
           const file = item.getAsFile();
           if (file) {
             await recognizeImage(file);
@@ -566,9 +565,12 @@ function DynamicListInput({ question, value, onChange }: { question: Question, v
     // 只在动态列表区域监听粘贴事件
     const container = document.querySelector(`input[name="${question.id}"]`)?.closest('.w-full');
     if (container) {
-      container.addEventListener('paste', handlePaste);
+      const wrappedHandler = (e: Event) => {
+        handlePaste(e as unknown as ClipboardEvent);
+      };
+      container.addEventListener('paste', wrappedHandler);
       return () => {
-        container.removeEventListener('paste', handlePaste);
+        container.removeEventListener('paste', wrappedHandler);
       };
     }
   }, [question.id, fields]);
