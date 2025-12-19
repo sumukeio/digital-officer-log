@@ -182,7 +182,7 @@ function QuestionDialog({ question }: { question?: Question }) {
                     // 根据类型构建 options JSON
                     let optionsJson = null;
                     if (questionType === "radio" || questionType === "checkbox" || questionType === "select") {
-                        const options = optionsText.split("\n").filter(o => o.trim()).map(o => o.trim());
+                        const options = optionsText.split("\n").filter((o: string) => o.trim()).map((o: string) => o.trim());
                         if (options.length > 0) {
                             optionsJson = JSON.stringify({ options });
                         }
