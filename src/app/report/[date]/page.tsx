@@ -1,3 +1,4 @@
+import React from "react";
 import { getDayReports } from "@/app/actions/submit-report";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +50,7 @@ export default async function ReportDetailPage(props: PageProps) {
   }
 
   // 辅助函数：渲染单个答案
-  const renderAnswer = (qId: string) => {
+  const renderAnswer = (qId: string, question?: typeof questions[0]) => {
     const ans = answers[qId];
     if (!ans) return null; // 没填的不显示，保持界面清爽
 
@@ -57,10 +58,131 @@ export default async function ReportDetailPage(props: PageProps) {
     const remark = ans.remark;
     const images = ans.images || [];
 
-    let displayVal = val;
+    // 处理数组类型
+    if (Array.isArray(val)) {
+      // 区分 checkbox（字符串数组）和 dynamic_list（对象数组）
+      const isDynamicList = val.length > 0 && typeof val[0] === 'object' && val[0] !== null;
+      
+      // checkbox 类型：渲染为标签列表
+      if (!isDynamicList) {
+        return (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {val.map((item: string, idx: number) => (
+                <span key={idx} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                  {item}
+                </span>
+              ))}
+            </div>
+            {remark && <div className="text-sm text-slate-500 bg-slate-100 px-2 py-1 rounded w-fit">备注: {remark}</div>}
+            {images.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {images.map((img: string, i: number) => (
+                  <Dialog key={i}>
+                    <DialogTrigger asChild>
+                      <div className="relative w-16 h-16 border rounded overflow-hidden cursor-zoom-in hover:opacity-80">
+                        <img src={img} className="w-full h-full object-cover" alt="preview" />
+                      </div>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl p-0 bg-transparent border-0 shadow-none flex justify-center items-center">
+                       <DialogHeader className="sr-only"><DialogTitle>预览</DialogTitle><DialogDescription>大图</DialogDescription></DialogHeader>
+                       <img src={img} alt="full" className="max-w-full max-h-[85vh] rounded-md object-contain" />
+                    </DialogContent>
+                  </Dialog>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      }
+      
+      // dynamic_list 类型：渲染为表格
+      // 解析问题的字段配置
+      let fields: Array<{ label: string; key: string }> = [];
+      if (question?.options) {
+        try {
+          const parsed = JSON.parse(question.options);
+          if (parsed.fields && Array.isArray(parsed.fields)) {
+            fields = parsed.fields;
+          }
+        } catch {
+          // 解析失败，使用默认字段
+        }
+      }
+      
+      // 如果没有配置，尝试从数据中推断字段
+      if (fields.length === 0 && val.length > 0) {
+        const firstRow = val[0];
+        if (typeof firstRow === 'object' && firstRow !== null) {
+          fields = Object.keys(firstRow).map(key => ({
+            label: key,
+            key: key
+          }));
+        }
+      }
+
+      return (
+        <div className="space-y-2">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse border border-slate-300 text-sm">
+              <thead>
+                <tr className="bg-slate-100">
+                  {fields.map((field, idx) => (
+                    <th key={idx} className="border border-slate-300 px-3 py-2 text-left font-semibold text-slate-700">
+                      {field.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {val.map((row: any, rowIdx: number) => (
+                  <tr key={rowIdx} className="hover:bg-slate-50">
+                    {fields.map((field, colIdx) => (
+                      <td key={colIdx} className="border border-slate-300 px-3 py-2 text-slate-800">
+                        {row[field.key] || '-'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {remark && <div className="text-sm text-slate-500 bg-slate-100 px-2 py-1 rounded w-fit">备注: {remark}</div>}
+          {images.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {images.map((img: string, i: number) => (
+                <Dialog key={i}>
+                  <DialogTrigger asChild>
+                    <div className="relative w-16 h-16 border rounded overflow-hidden cursor-zoom-in hover:opacity-80">
+                      <img src={img} className="w-full h-full object-cover" alt="preview" />
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl p-0 bg-transparent border-0 shadow-none flex justify-center items-center">
+                     <DialogHeader className="sr-only"><DialogTitle>预览</DialogTitle><DialogDescription>大图</DialogDescription></DialogHeader>
+                     <img src={img} alt="full" className="max-w-full max-h-[85vh] rounded-md object-contain" />
+                  </DialogContent>
+                </Dialog>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 处理其他类型
+    let displayVal: React.ReactNode = val;
+    
     // 处理布尔值显示
-    if (val === true || val === 'true') displayVal = <span className="text-green-600 font-bold">正常 / 是</span>;
-    if (val === false || val === 'false') displayVal = <span className="text-red-500 font-bold">异常 / 否</span>;
+    if (val === true || val === 'true') {
+      displayVal = <span className="text-green-600 font-bold">正常 / 是</span>;
+    } else if (val === false || val === 'false') {
+      displayVal = <span className="text-red-500 font-bold">异常 / 否</span>;
+    } else if (typeof val === 'object' && val !== null) {
+      // 防止直接渲染对象（兜底处理）
+      displayVal = <span className="text-slate-500 italic">[对象数据]</span>;
+    } else if (val === null || val === undefined) {
+      displayVal = <span className="text-slate-400">-</span>;
+    }
 
     return (
       <div className="space-y-1">
@@ -146,7 +268,7 @@ export default async function ReportDetailPage(props: PageProps) {
                return (
                 <div key={q.id} className="border-b pb-4 last:border-0 last:pb-0">
                     <div className="text-sm text-slate-500 mb-1">{q.label}</div>
-                    {renderAnswer(q.id)}
+                    {renderAnswer(q.id, q)}
                 </div>
                );
             })}

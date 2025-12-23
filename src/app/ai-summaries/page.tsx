@@ -11,3 +11,6 @@ export default async function AISummariesPage() {
   return <AISummariesClient />;
 }
 
+
+
+
