@@ -1,60 +1,62 @@
-## 12月18日更新
-### 新增功能
-1、登录页优化：添加"记住密码"功能，自动保存工号；添加"忘记密码"功能，支持通过工号+姓名验证重置密码。
-2、管理员后台题目类型扩展：新增单选框（radio）、多选框（checkbox）、下拉框（select）类型，支持配置选项列表。
-3、动态列表功能：新增动态列表题目类型，支持多行数据输入（如产品名称+规格），可动态增删行。
-4、OCR 图片识别：动态列表支持图片识别功能，用户可上传或粘贴图片，自动识别并填充数据（使用浏览器端 Tesseract.js，支持中英文识别）。
+# Digital Officer Log (数字化专员工作日志系统)
 
-### Bug修复
-1、修复了测试环境 ResizeObserver 未定义的错误。
+> 数字化专员工作日志、任务看板、指标分析与知识库管理系统。  
+> 本项目遵循 [AGENTS.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/AGENTS.md) 严格 Doc-Driven 工程治理体系与 7 大铁律。
 
-## 12月17日更新
-### Bug修复
-1、修复了立即发布按钮，点两次还是会新建两个同名任务的bug（服务端防重复提交 + 前端loading状态）。
-2、修复了任务看板横向滚动条必须滚动到底部才能看到的问题（固定容器高度，滚动条始终可见）。
-3、修复了删除历史归档任务时的外键约束错误（先删除关联日志再删除任务）。
-4、修复了任务看板页面的语法错误导致页面无法加载的问题。
+---
 
-### 新增功能
-1、管理员可以在历史归档任务页面删除任务（卡片右上角删除按钮）。
-2、任务看板支持任务复制功能（点击复制按钮，预填数据打开新建弹窗）。
-3、任务看板支持删除任务功能（本人可删除自己的任务，管理员可删除任意任务）。
+## 🚀 快速启动
 
-## 12月16日更新
-### Bug修复
-1、指标趋势分析看板取数异常。
-2、通过日历查看当日已提交日报时，无法选择区域。
+### 1. 环境要求
+- Node.js >= 20.0.0
+- npm / pnpm / yarn
 
-### 新增功能
-1、日报填写页面，支持图片的右键粘贴和拖入。
-2、任务看板：新建任务时，开始日期与持续时间非必填，方便安排计划。
-持续时间支持点击拖拽修改。
+### 2. 安装与运行
+```bash
+# 1. 安装依赖
+npm install
 
+# 2. 生成 Prisma Client
+npx prisma generate
 
-## 12月13日更新
-### 优化功能
-1、关键指标趋势看板，增加了区域选项，可以根据区域查看对应各指标数据。
+# 3. 启动开发服务器
+npm run dev
+```
+打开浏览器访问 [http://localhost:3000](http://localhost:3000)。
 
-2、任务看板优化了任务结构，可以设置开始时间、预计用时。完成后的任务会出现在历史任务中。
+### 3. 自动化测试与构建
+```bash
+# 运行 Jest 自动化测试 (交付必测)
+npm test
 
+# 运行测试覆盖率
+npm run test:coverage
 
-## 12月12日更新
+# 执行生产全量构建 (带严格类型检查)
+npm run build
+```
 
-### 新增功能
-增加了知识库、任务看板、快捷网址等功能。
+---
 
-### bug修复
-1）手机端看不到知识库入口；
+## 🛠️ 技术栈选型
 
-2）管理员拖动任务失败；
+- **全栈框架**：Next.js 16 (App Router) + React 19
+- **开发语言**：TypeScript 5 (Strict 模式)
+- **数据层**：Prisma ORM 5.22
+- **UI 体系**：TailwindCSS v4 + Radix UI + Lucide Icons + Recharts
+- **测试框架**：Jest 29 + React Testing Library + `@testing-library/jest-dom`
 
-3）页面上的文字可以选中；
+---
 
-4）创建/修改/完成任务，都需要刷新才能看到；
+## 📖 工程规范与文档导航
 
-### 功能优化：手机端任务看板。
-1）手机端自动切换为竖向布局。
+项目的文档与研发管理遵循**单一事实来源**原则：
 
-2）任务看板只显示当日任务和未来任务。今天以前且已经完成的任务自动隐藏，未完成的依旧显示。
-
-3）增加了历史任务入口，可以看到今天以前的任务。
+| 模块 | 说明 | 快速跳转 |
+| --- | --- | --- |
+| **工程开发总守则** | 7 大铁律、五步工作流与负向禁令 | [AGENTS.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/AGENTS.md) |
+| **业务文档总索引** | 知识库与操作指引全局路由表 | [docs/README.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/README.md) |
+| **全量变更日志** | 项目历史发布与各阶段功能变更记录 | [docs/CHANGELOG.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/CHANGELOG.md) |
+| **研发生命周期** | `.phrase/` 阶段治理与当前任务 | [.phrase/docs/CHANGE.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/.phrase/docs/CHANGE.md) |
+| **测试规范指南** | Jest 编写与单测执行指引 | [docs/guide/testing-guide.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/testing-guide.md) |
+| **排错与构建指南** | 部署排查与 `dev` vs `build` 差异剖析 | [docs/guide/deployment-troubleshooting.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/deployment-troubleshooting.md) |

@@ -1,0 +1,33 @@
+---
+description: 技术栈工程规范与负向禁令清单 (映射自 AGENTS.md)
+globs: *
+---
+
+# tech-stack-and-negative-rules — 技术栈与负向禁令清单
+
+> **权威性声明**：本文档映射自根目录 `AGENTS.md`，明确本仓库的技术栈标准与最高优先级的负向禁令。
+
+## 一、本仓库核心技术栈
+
+- **框架与运行时**：Next.js 16 (App Router), React 19, Node.js (>=20)
+- **开发语言**：TypeScript 5 (Strict 模式)
+- **数据持久层**：Prisma ORM 5.22, PostgreSQL/MySQL/SQLite
+- **样式与组件**：TailwindCSS v4, Radix UI, Lucide React
+- **测试框架**：Jest 29, React Testing Library, `@testing-library/jest-dom`
+
+## 二、标准开发与验证命令
+
+- `npm run dev`：启动本地 Next.js 服务
+- `npm test`：运行 Jest 测试套件（交付前必测）
+- `npm run test:coverage`：测试覆盖率
+- `npm run build`：执行生产构建验证（包含 prisma generate）
+- `npm run lint`：Next.js ESLint 检查
+
+## 三、最高优先级负向禁令 (Negative Rules)
+
+1. **严禁隐式 `any` 与宽松类型忽略**：必须保持严格类型约束，禁止无类型回调参数。
+2. **严禁未执行验证即声称任务完成**：必须运行 `npm test` 并出具测试日志。
+3. **严禁私自执行 `git commit` / `git push`**：提交权限 100% 归人类所有。
+4. **严禁硬删除历史文档与配置**：历史说明文档必须优雅归档迁移。
+5. **严禁擅自修改业务代码**：非业务任务严禁擅自顺手重构业务代码。
+6. **严禁连续串行执行下一个 Task**：必须单任务推进并刹车等待人类确认。

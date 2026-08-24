@@ -1,10 +1,9 @@
-> **状态**：[已迁移至 docs/guide/]
-> **权威现行文档**：[docs/guide/testing-guide.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/testing-guide.md)
-> **说明**：根据 AGENTS.md 优雅归档原则保留本文件历史引用。
+# 测试指引与规范 (Testing Guide)
 
-# 测试文档
+> **状态**：[权威/现行]
+> **说明**：指导本项目使用 Jest + React Testing Library 编写与运行自动化测试用例。
 
-本项目使用 **Jest** + **React Testing Library** 进行自动化测试。
+---
 
 ## 安装依赖
 
@@ -15,7 +14,7 @@ npm install
 ## 运行测试
 
 ```bash
-# 运行所有测试
+# 运行所有测试（交付前必跑）
 npm test
 
 # 监听模式（开发时使用）
@@ -25,9 +24,9 @@ npm run test:watch
 npm run test:coverage
 ```
 
-## 测试结构
+## 测试目录结构
 
-```
+```text
 src/
 ├── __tests__/
 │   ├── actions/          # Server Actions 测试
@@ -59,12 +58,12 @@ src/
 ### 4. 工具函数 (`utils.test.ts`)
 - ✅ 类名合并工具
 
-## 编写新测试
+## 编写新测试规范
 
 ### Server Action 测试示例
 
 ```typescript
-import { myAction } from '@/app/actions/my-action'
+import { myAction } from '@/actions/my-action'
 import { prisma } from '@/lib/prisma'
 
 jest.mock('@/lib/prisma', () => ({
@@ -112,11 +111,11 @@ describe('MyComponent', () => {
 
 ## 测试最佳实践
 
-1. **测试命名**：使用描述性的测试名称，说明测试的场景
-2. **AAA 模式**：Arrange（准备）→ Act（执行）→ Assert（断言）
-3. **Mock 外部依赖**：数据库、API、Next.js 路由等
-4. **测试边界情况**：成功、失败、边界值
-5. **保持测试独立**：每个测试应该独立运行，不依赖其他测试
+1. **测试命名**：使用描述性的测试名称，说明测试的场景。
+2. **AAA 模式**：Arrange（准备）→ Act（执行）→ Assert（断言）。
+3. **Mock 外部依赖**：数据库、第三方 API、Next.js 路由等。
+4. **测试边界情况**：成功、失败、边界值、异常捕获。
+5. **保持测试独立**：每个测试应该独立运行，不依赖其他测试。
 
 ## CI/CD 集成
 
@@ -130,8 +129,6 @@ describe('MyComponent', () => {
 
 ## 覆盖率目标
 
-- 核心业务逻辑：> 80%
+- 核心业务与 Server Actions：> 80%
 - 工具函数：> 90%
-- 组件：> 70%
-
-
+- 前端核心交互组件：> 70%

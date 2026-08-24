@@ -1,8 +1,9 @@
-> **状态**：[已迁移至 docs/guide/]
-> **权威现行文档**：[docs/guide/why-deployment-fails.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/why-deployment-fails.md)
-> **说明**：根据 AGENTS.md 优雅归档原则保留本文件历史引用。
+# 为什么本地测试通过，但部署时失败？ (Why Deployment Fails)
 
-# 为什么本地测试通过，但部署时失败？
+> **状态**：[权威/现行]
+> **说明**：深度剖析 Next.js 开发模式（`next dev`）与生产构建模式（`next build`）在 TypeScript 类型检查、Tree Shaking 与代码优化层面的本质差异。
+
+---
 
 ## 🤔 核心问题
 
@@ -402,10 +403,3 @@ npm run dev & npx tsc --noEmit --watch
 **记住：如果 `npm run dev` 能运行，不代表代码没有问题！**
 
 **总是运行 `npm run build` 来验证代码质量！** ✅
-
-
-
-
-
-
-

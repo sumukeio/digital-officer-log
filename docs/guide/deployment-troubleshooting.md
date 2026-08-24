@@ -1,8 +1,9 @@
-> **状态**：[已迁移至 docs/guide/]
-> **权威现行文档**：[docs/guide/deployment-troubleshooting.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/deployment-troubleshooting.md)
-> **说明**：根据 AGENTS.md 优雅归档原则保留本文件历史引用。
+# 部署失败常见原因总结 (Deployment Troubleshooting)
 
-# 部署失败常见原因总结
+> **状态**：[权威/现行]
+> **说明**：汇总 TypeScript 严格模式、缺少参数、环境变量、Prisma 与运行时错误的排查与防范方法。
+
+---
 
 ## 📋 最近修复的错误回顾
 
@@ -465,11 +466,4 @@ interface User {
 
 ---
 
-**最后更新：** 2024年12月
-
-
-
-
-
-
-
+**最后更新：** 2024年12月 (由 Doc-Driven 脚手架优雅迁移治理至 `docs/guide/`)
