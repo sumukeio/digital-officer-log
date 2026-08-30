@@ -18,7 +18,9 @@ export async function login(formData: FormData) {
 
     (await cookies()).set("userId", user.id, { 
       httpOnly: true, 
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // 适配内网 HTTP 访问
+      sameSite: "lax",
+      path: "/",
       maxAge: 60 * 60 * 24 * 7 
     });
 
@@ -29,6 +31,8 @@ export async function login(formData: FormData) {
     (await cookies()).set("userId", "dev-admin-id", {
       httpOnly: true,
       secure: false,
+      sameSite: "lax",
+      path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
     return { success: true, message: "本地离线调试模式：登录成功" };
