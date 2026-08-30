@@ -13,7 +13,7 @@ import {
   LogOut, PlusCircle, KeyRound, Loader2, Bot,
   Settings2, BarChart3, User, MapPin, BadgeCheck,
   UserCircle, LayoutTemplate, BookOpen, ExternalLink,
-  ClipboardList, Bell, History
+  ClipboardList, Bell, History, FileSpreadsheet
 } from "lucide-react";
 import { UpdateAnnouncementDialog } from "@/components/UpdateAnnouncement";
 import { logout, changePassword } from "@/app/actions/auth";
@@ -152,10 +152,14 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
            <Button variant="ghost" size="sm" onClick={() => router.push('/tasks')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 ml-2">
              <ClipboardList className="w-4 h-4" /> <span className="font-medium">任务看板</span>
            </Button>
+           <Button variant="ghost" size="sm" onClick={() => router.push('/weekly-summary')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 ml-1">
+             <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> <span className="font-medium">周报生成</span>
+           </Button>
          </div>
          <div className="flex items-center gap-2">
-            {/* 移动端/管理员按钮等保持不变... */}
+            {/* 移动端/管理员按钮等 */}
             <Button variant="ghost" size="icon" onClick={() => router.push('/tasks')} className="sm:hidden text-slate-600"><ClipboardList className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => router.push('/weekly-summary')} className="sm:hidden text-slate-600" title="周报生成"><FileSpreadsheet className="w-5 h-5 text-emerald-600" /></Button>
             <Button variant="ghost" size="icon" onClick={() => router.push('/knowledge')} className="sm:hidden text-slate-600"><BookOpen className="w-5 h-5" /></Button>
             {isAdmin && (
               <>
@@ -172,13 +176,20 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
       </nav>
 
       <main className="container mx-auto p-4 max-w-7xl space-y-6 flex-1">
-        {/* 欢迎区 (保持不变) */}
+        {/* 欢迎区 */}
         <section className="flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-xl shadow-sm border gap-4">
            <div className="text-center sm:text-left">
              <h1 className="text-2xl font-bold text-slate-800">你好，{currentUser.name || currentUser.workId} 👋</h1>
              <p className="text-slate-500 mt-1">本月已提交 <span className="text-blue-600 font-bold text-lg">{submittedDates.length}</span> 篇日报</p>
            </div>
-           <Button onClick={() => router.push("/report/new")} className="h-12 px-6 text-base shadow-lg shadow-blue-200 w-full sm:w-auto"><PlusCircle className="w-5 h-5 mr-2" /> 新建今日日报</Button>
+           <div className="flex gap-2 w-full sm:w-auto">
+             <Button variant="outline" onClick={() => router.push("/weekly-summary")} className="h-12 px-5 text-sm border-blue-200 text-blue-700 bg-blue-50/70 hover:bg-blue-100 flex-1 sm:flex-initial">
+               <FileSpreadsheet className="w-4 h-4 mr-1.5 text-emerald-600" /> 自动总结周报
+             </Button>
+             <Button onClick={() => router.push("/report/new")} className="h-12 px-6 text-base shadow-lg shadow-blue-200 flex-1 sm:flex-initial">
+               <PlusCircle className="w-5 h-5 mr-2" /> 新建今日日报
+             </Button>
+           </div>
         </section>
 
         <div className="grid lg:grid-cols-3 gap-6">

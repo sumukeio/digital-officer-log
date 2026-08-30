@@ -7,6 +7,8 @@ interface PageProps {
   searchParams: Promise<{ date?: string }>;
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function NewReportPage(props: PageProps) {
   // 1. 获取 URL 参数中的 date
   const searchParams = await props.searchParams;

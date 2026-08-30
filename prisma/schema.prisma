@@ -22,6 +22,7 @@ model User {
   tasks             Task[]
   roles             Role[]        @relation("RoleToUser")
   aiSummaries      AISummary[]
+  weeklyReports    WeeklyReport[]
 }
 
 model Role {
@@ -120,4 +121,28 @@ model AISummary {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model WeeklyReport {
+  id              String    @id @default(cuid())
+  userId          String
+  title           String    // 周报标题，如 "8.17-8.23海铭德系统使用周报"
+  startDate       DateTime  // 周期起始日期
+  endDate         DateTime  // 周期截止日期
+  weekNumber      Int?      // 年中第几周 (1-53)
+  year            Int       // 年份，如 2026
+  metrics         String    // JSON: 各模块解析与计算后的指标快照
+  manualSections  String    // JSON: 手动填写的模块内容 (设备点检、保养、必应、培训、嘟嘟卡、改进建议等)
+  activeModules   String?   // JSON: 本次启用的模块列表
+  content         String    // 生成的标准纯文本周报内容
+  markdownContent String?   // 企微富文本 Markdown 内容
+  isPushedToWecom Boolean   @default(false)
+  pushedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id])
+
+  @@index([startDate, endDate])
+  @@index([year, weekNumber])
+  @@index([userId])
 }

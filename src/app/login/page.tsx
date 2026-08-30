@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { HardHat, ArrowRight } from "lucide-react";
-import LoginClient from "./login-client"; // 拆分客户端组件以支持 toast
+import LoginClient from "./login-client";
+
+export const dynamic = "force-dynamic";
 
 // 1. 服务端获取配置
 export default async function LoginPage() {

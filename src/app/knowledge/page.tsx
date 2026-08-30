@@ -13,6 +13,8 @@ import { redirect } from "next/navigation";
 // 这里我们直接写一个简单的 Client Component 混用在页面里，或者拆分
 // 为了方便展示，这里写一个 Server Component，包含 Client 交互部分
 
+export const dynamic = "force-dynamic";
+
 export default async function KnowledgeBasePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

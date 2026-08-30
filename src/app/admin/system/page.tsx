@@ -1,6 +1,8 @@
 import { getSystemConfig, getQuickLinks } from "@/app/actions/admin";
 import SystemForm from "./system-form";
 
+export const dynamic = "force-dynamic";
+
 export default async function SystemConfigPage() {
   const [config, links] = await Promise.all([
     getSystemConfig(),

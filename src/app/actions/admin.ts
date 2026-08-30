@@ -9,10 +9,15 @@ import { uploadToMinIO } from "@/lib/minio"; // 引入上传工具
 // =========================================================
 
 export async function getUsers() {
-  return await prisma.user.findMany({
-    include: { roles: true },
-    orderBy: { createdAt: 'desc' }
-  });
+  try {
+    return await prisma.user.findMany({
+      include: { roles: true },
+      orderBy: { createdAt: 'desc' }
+    });
+  } catch (error) {
+    console.error("读取用户列表失败，回退为空列表:", error);
+    return [];
+  }
 }
 
 export async function saveUser(formData: FormData) {
@@ -67,11 +72,16 @@ export async function resetUserPassword(userId: string) {
 // =========================================================
 
 export async function getAllReportsForExport() {
-  const reports = await prisma.dailyReport.findMany({
-    orderBy: { date: "desc" },
-    include: { user: true },
-  });
-  return reports;
+  try {
+    const reports = await prisma.dailyReport.findMany({
+      orderBy: { date: "desc" },
+      include: { user: true },
+    });
+    return reports;
+  } catch (error) {
+    console.error("导出日报数据失败:", error);
+    return [];
+  }
 }
 
 // =========================================================
@@ -79,7 +89,12 @@ export async function getAllReportsForExport() {
 // =========================================================
 
 export async function getQuestions() {
-  return await prisma.question.findMany({ orderBy: { order: 'asc' } });
+  try {
+    return await prisma.question.findMany({ orderBy: { order: 'asc' } });
+  } catch (error) {
+    console.error("读取问卷题目失败:", error);
+    return [];
+  }
 }
 
 export async function saveQuestion(formData: FormData) {
@@ -139,51 +154,66 @@ export async function deleteQuestion(id: string) {
 // =========================================================
 
 export async function getAnalyticsData() {
-  const questions = await prisma.question.findMany({ where: { isEnabled: true } });
-  
-  const metricsMap: Record<string, string> = {};
-  questions.forEach(q => {
-    if (q.label.includes("生产头条开卡")) metricsMap["prod_open"] = q.id;
-    if (q.label.includes("QC头条开卡")) metricsMap["qc_open"] = q.id;
-    if (q.label.includes("OKR开卡")) metricsMap["okr_open"] = q.id;
-    if (q.label.includes("精益提报")) metricsMap["lean_open"] = q.id;
-    if (q.label.includes("IPQC点检")) metricsMap["ipqc_open"] = q.id;
-  });
-
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  
-  const reports = await prisma.dailyReport.findMany({
-    where: { date: { gte: thirtyDaysAgo } },
-    orderBy: { date: 'asc' }
-  });
-
-  const dailyStats: Record<string, any> = {};
-
-  reports.forEach(r => {
-    const dateKey = new Date(r.date.getTime() + 8 * 3600 * 1000).toISOString().slice(5, 10);
+  try {
+    const questions = await prisma.question.findMany({ where: { isEnabled: true } });
     
-    if (!dailyStats[dateKey]) {
-      dailyStats[dateKey] = { date: dateKey, prod: 0, qc: 0, okr: 0, lean: 0, ipqc: 0 };
+    const metricsMap: Record<string, string> = {};
+    questions.forEach(q => {
+      if (q.label.includes("生产头条开卡")) metricsMap["prod_open"] = q.id;
+      if (q.label.includes("QC头条开卡")) metricsMap["qc_open"] = q.id;
+      if (q.label.includes("OKR开卡")) metricsMap["okr_open"] = q.id;
+      if (q.label.includes("精益提报")) metricsMap["lean_open"] = q.id;
+      if (q.label.includes("IPQC点检")) metricsMap["ipqc_open"] = q.id;
+    });
+
+    const now = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(now.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const reports = await prisma.dailyReport.findMany({
+      where: {
+        date: { gte: sevenDaysAgo }
+      },
+      orderBy: { date: 'asc' }
+    });
+
+    const dailyStats: Record<string, any> = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(sevenDaysAgo);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split("T")[0];
+      dailyStats[dateStr] = {
+        date: `${d.getMonth() + 1}/${d.getDate()}`,
+        prod: 0, qc: 0, okr: 0, lean: 0, ipqc: 0
+      };
     }
 
-    try {
-      const answers = JSON.parse(r.answers);
-      const getVal = (key: string) => {
-        const qId = metricsMap[key];
-        if (!qId || !answers[qId]) return 0;
-        return Number(answers[qId].value) || 0;
-      };
+    reports.forEach(report => {
+      const dateKey = report.date.toISOString().split("T")[0];
+      if (!dailyStats[dateKey]) return;
 
-      dailyStats[dateKey].prod += getVal("prod_open");
-      dailyStats[dateKey].qc += getVal("qc_open");
-      dailyStats[dateKey].okr += getVal("okr_open");
-      dailyStats[dateKey].lean += getVal("lean_open");
-      dailyStats[dateKey].ipqc += getVal("ipqc_open");
-    } catch (e) {}
-  });
+      try {
+        const answersObj = JSON.parse(report.answers || "{}");
+        const getVal = (metricKey: string) => {
+          const qId = metricsMap[metricKey];
+          if (!qId || !answersObj[qId]) return 0;
+          return Number(answersObj[qId].value) || 0;
+        };
 
-  return Object.values(dailyStats);
+        dailyStats[dateKey].prod += getVal("prod_open");
+        dailyStats[dateKey].qc += getVal("qc_open");
+        dailyStats[dateKey].okr += getVal("okr_open");
+        dailyStats[dateKey].lean += getVal("lean_open");
+        dailyStats[dateKey].ipqc += getVal("ipqc_open");
+      } catch (e) {}
+    });
+
+    return Object.values(dailyStats);
+  } catch (error) {
+    console.error("读取看板分析数据失败:", error);
+    return [];
+  }
 }
 
 // =========================================================
@@ -191,10 +221,17 @@ export async function getAnalyticsData() {
 // =========================================================
 
 export async function getSystemConfig() {
-  const configs = await prisma.systemConfig.findMany();
-  const configMap: Record<string, string> = {};
-  configs.forEach(c => configMap[c.key] = c.value);
-  return configMap;
+  try {
+    const configs = await prisma.systemConfig.findMany();
+    const configMap: Record<string, string> = {};
+    configs.forEach(c => configMap[c.key] = c.value);
+    return configMap;
+  } catch (error) {
+    console.error("读取系统配置失败，使用默认配置回退:", error);
+    return {
+      app_name: "数字官工作台",
+    };
+  }
 }
 
 export async function saveSystemConfig(formData: FormData) {
@@ -244,7 +281,12 @@ export async function saveSystemConfig(formData: FormData) {
 // =========================================================
 
 export async function getQuickLinks() {
-  return await prisma.quickLink.findMany({ orderBy: { order: 'asc' } });
+  try {
+    return await prisma.quickLink.findMany({ orderBy: { order: 'asc' } });
+  } catch (error) {
+    console.error("读取快捷链接失败，回退为空列表:", error);
+    return [];
+  }
 }
 
 export async function saveQuickLink(formData: FormData) {

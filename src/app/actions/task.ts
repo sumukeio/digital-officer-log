@@ -12,39 +12,54 @@ const MAX_INT4 = 2147483647;
 
 // 获取看板数据 (只展示未完成的任务)
 export async function getBoardData() {
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: 'asc' },
-    select: { id: true, name: true, workId: true }
-  });
+  try {
+    const users = await prisma.user.findMany({
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, name: true, workId: true }
+    });
 
-  const tasks = await prisma.task.findMany({
-    where: {
-      isCompleted: false // 只查没做完的
-    },
-    orderBy: { order: 'asc' },
-    include: { user: true }
-  });
+    const tasks = await prisma.task.findMany({
+      where: {
+        isCompleted: false // 只查没做完的
+      },
+      orderBy: { order: 'asc' },
+      include: { user: true }
+    });
 
-  return { users, tasks };
+    return { users, tasks };
+  } catch (error) {
+    console.error("获取任务看板数据失败:", error);
+    return { users: [], tasks: [] };
+  }
 }
 
 // ✅ 补回：获取历史任务 (已完成的任务)
 export async function getHistoryTasks() {
-  return await prisma.task.findMany({
-    where: { isCompleted: true },
-    orderBy: { updatedAt: 'desc' }, // 按完成时间倒序
-    include: { user: true },
-    take: 100 // 限制显示最近100条
-  });
+  try {
+    return await prisma.task.findMany({
+      where: { isCompleted: true },
+      orderBy: { updatedAt: 'desc' }, // 按完成时间倒序
+      include: { user: true },
+      take: 100 // 限制显示最近100条
+    });
+  } catch (error) {
+    console.error("获取历史任务失败:", error);
+    return [];
+  }
 }
 
 // ✅ 补回：获取操作日志
 export async function getTaskLogs() {
-  return await prisma.taskLog.findMany({
-    include: { task: true },
-    orderBy: { createdAt: 'desc' },
-    take: 100
-  });
+  try {
+    return await prisma.taskLog.findMany({
+      include: { task: true },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+  } catch (error) {
+    console.error("获取操作日志失败:", error);
+    return [];
+  }
 }
 
 // ==========================================

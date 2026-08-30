@@ -6,10 +6,15 @@ import { uploadToMinIO } from "@/lib/minio";
 import { revalidatePath } from "next/cache";
 
 export async function getIssues() {
-  return await prisma.issue.findMany({
-    include: { user: true },
-    orderBy: { createdAt: 'desc' }
-  });
+  try {
+    return await prisma.issue.findMany({
+      include: { user: true },
+      orderBy: { createdAt: 'desc' }
+    });
+  } catch (error) {
+    console.error("读取知识库问题失败:", error);
+    return [];
+  }
 }
 
 export async function createIssue(formData: FormData) {

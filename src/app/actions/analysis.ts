@@ -5,9 +5,14 @@ import { getCurrentUser } from "@/app/actions/auth";
 
 // 1. 获取当前用户的负责区域 (公用)
 export async function getUserAreas() {
-  const user = await getCurrentUser();
-  if (!user || !user.assignedAreas) return [];
-  return user.assignedAreas.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+  try {
+    const user = await getCurrentUser();
+    if (!user || !user.assignedAreas) return [];
+    return user.assignedAreas.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+  } catch (error) {
+    console.error("获取用户区域失败:", error);
+    return [];
+  }
 }
 
 // ==========================================
@@ -15,38 +20,43 @@ export async function getUserAreas() {
 //  (保持不变，用于 analysis/page.tsx)
 // ==========================================
 export async function getAnalysisMetrics(area: string) {
-  const user = await getCurrentUser();
-  if (!user) return { totalTasks: 0, completedTasks: 0, completionRate: "0" };
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { totalTasks: 0, completedTasks: 0, completionRate: "0" };
 
-  let areaFilter: string[] = [];
-  if (area === "all") {
-    if (user.assignedAreas) {
-      areaFilter = user.assignedAreas.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+    let areaFilter: string[] = [];
+    if (area === "all") {
+      if (user.assignedAreas) {
+        areaFilter = user.assignedAreas.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      }
+    } else {
+      areaFilter = [area];
     }
-  } else {
-    areaFilter = [area];
-  }
 
-  if (areaFilter.length === 0) {
+    if (areaFilter.length === 0) {
+      return { totalTasks: 0, completedTasks: 0, completionRate: "0" };
+    }
+
+    const taskWhere = {
+      OR: areaFilter.map(a => ({
+        location: { contains: a }
+      }))
+    };
+
+    const totalTasks = await prisma.task.count({ where: taskWhere });
+    const completedTasks = await prisma.task.count({
+      where: { ...taskWhere, isCompleted: true }
+    });
+
+    const completionRate = totalTasks > 0 
+      ? ((completedTasks / totalTasks) * 100).toFixed(1) 
+      : "0";
+
+    return { totalTasks, completedTasks, completionRate };
+  } catch (error) {
+    console.error("获取分析指标失败:", error);
     return { totalTasks: 0, completedTasks: 0, completionRate: "0" };
   }
-
-  const taskWhere = {
-    OR: areaFilter.map(a => ({
-      location: { contains: a }
-    }))
-  };
-
-  const totalTasks = await prisma.task.count({ where: taskWhere });
-  const completedTasks = await prisma.task.count({
-    where: { ...taskWhere, isCompleted: true }
-  });
-
-  const completionRate = totalTasks > 0 
-    ? ((completedTasks / totalTasks) * 100).toFixed(1) 
-    : "0";
-
-  return { totalTasks, completedTasks, completionRate };
 }
 
 // ==========================================
@@ -64,9 +74,10 @@ type TrendData = {
   ipqc: number;
 };
 
-export async function getReportTrend(area: string) {
-  const user = await getCurrentUser();
-  if (!user) return [];
+export async function getReportTrend(area: string): Promise<TrendData[]> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return [];
 
   // A. 准备区域过滤
   let areaFilter: string[] = [];
@@ -187,4 +198,8 @@ export async function getReportTrend(area: string) {
   }
 
   return trendData;
+  } catch (error) {
+    console.error("获取趋势报表失败:", error);
+    return [];
+  }
 }

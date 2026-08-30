@@ -5,6 +5,123 @@
 
 ---
 
+## [2026-08-30] - 全局模块异常健壮性加固与 UI 弹窗重叠修复
+
+### UI 修复
+- **预览弹窗布局优化 (`src/components/weekly-report/ReportPreviewModal.tsx`)**：
+  - 为弹窗顶部工具栏添加 `pr-8` 右侧间距，彻底消除「企微 Webhook 配置」按钮与 Dialog 默认右上角关闭「✕」按钮的视觉重叠。
+
+### 全局健壮性加固
+- **全站 Server Actions 防御性加固**：
+  - 在 `src/app/actions/admin.ts`（用户列表、题目模板、看板分析、快捷链接）、`src/app/actions/submit-report.ts`（题目获取、月度日历状态、单日详情）、`src/app/actions/task.ts`（看板任务、历史任务、日志）、`src/app/actions/issue.ts`（知识库）、`src/app/actions/analysis.ts`（区域趋势）等核心查询中全部加入健壮的 `try-catch` 异常捕获与空数组/安全兜底，杜绝离线或网络抖动时服务端崩溃。
+- **环境配置归档**：
+  - 在 `.env` 中注释保留历史 Supabase 配置并启用内网服务器 PostgreSQL 配置。
+- **全量测试与构建验证**：
+  - 执行 `npm test`：8 个测试套件 61 个测试用例 100% 绿色通过；
+  - 执行 Next.js 全量生产编译构建：全部 17 个路由页面编译成功，0 错误 0 警告。
+
+---
+
+## [2026-08-30] - 导航入口集成、生产环境全量构建与 Phase 闭环 (`task007`)
+
+### 导航与入口
+- **工作台主页导航 (`src/app/dashboard-client.tsx`)**：
+  - 顶部导航栏与移动端添加「周报生成」按钮，直达 `/weekly-summary`；
+  - 欢迎卡片操作区新增「自动总结周报」快捷按钮。
+
+### 工程与构建加固
+- **TypeScript 严格类型加固**：
+  - 完善 `WorkshopStats` 与 `DepartmentStats` 索引签名，全面兼容 Recharts 3.x 数据结构；
+  - 规范组件 `WeeklyCharts` 中的 `percent` 校验与类型守卫；
+- **生产编译与 SSR 安全性加固**：
+  - 在 `login`, `knowledge`, `admin/system`, `ai-summaries`, `report/new` 等页面规范声明 `export const dynamic = 'force-dynamic'`，防止离线静态构建尝试连接数据库；
+  - 运行 `npm run build`，Next.js 生产 Turbopack 打包编译 100% 通过（0 错误 0 警告）；
+  - 运行 `npm test`，全量 8 个测试套件 61 个用例 100% 绿色通过。
+
+---
+
+## [2026-08-30] - 周报工作台前端页面与交互组件落地 (`task006`)
+
+### 前端与用户交互
+- **周报工作台路由 (`src/app/weekly-summary/`)**：
+  - `page.tsx`：周报工作台服务端页面，负责身份鉴权、自然周推算与基准数据预取。
+  - `weekly-summary-client.tsx`：客户端主交互工作台，集成多文件拖拽、实时指标计算、图表看板、手写表单与一键推送预览。
+- **周报专属组件库 (`src/components/weekly-report/`)**：
+  - `PeriodSelector.tsx`：周期快捷切换（本周/上周/自然周）与上周环比基准微调弹窗。
+  - `FileDropzone.tsx`：多 Excel 批量拖拽上传、文件级去重校验、识别标签与清单展示。
+  - `MetricsOverview.tsx`：生产头条/QC头条/新随拍/OKR/精益实时指标透视与超期明细弹窗。
+  - `WeeklyCharts.tsx`：生产车间分布饼图与随拍各部门打卡柱状图。
+  - `ManualForm.tsx`：模块勾选开关、反思预填草稿、设备点检/保养/嘟嘟卡/系统改进建议等手写表单。
+  - `ReportPreviewModal.tsx`：微信群文本与企微 Markdown 实时双视图预览、一键复制到剪贴板与企微群机器人一键推送。
+- **单元测试**：
+  - 新增 `src/__tests__/components/WeeklySummary.test.tsx` 页面组件单元测试。
+  - 运行 `npm test`，全量 8 个测试套件 61 个用例 100% 通过。
+
+---
+
+## [2026-08-30] - 周报服务端 Actions 与企微机器人推送服务落地 (`task005`)
+
+### 服务端与通信
+- **Server Actions 实现 (`src/app/actions/weekly-report.ts`)**：
+  - `saveWeeklyReport`：周报新增与更新持久化，支持指标快照与手写补充。
+  - `getLastWeekMetrics`：自动跨周/跨年检索上一周期历史周报并提取指标基准。
+  - `getWeeklyReportList`：周报历史列表查询。
+  - `getWecomWebhookConfig` / `saveWecomWebhookConfig`：管理企微群机器人 Webhook 地址。
+  - `pushWeeklyReportToWecom`：调用企微机器人 Webhook 接口发送 Markdown 格式周报，支持状态回写与友好错误提示。
+- **单元测试**：
+  - 新增 `src/__tests__/actions/weekly-report.test.ts`，涵盖 Webhook 配置、基准拉取、持久化、推送等单测。
+  - 运行 `npm test`，全量 7 个测试套件 57 个用例 100% 通过。
+
+---
+
+## [2026-08-30] - 周报核心纯函数库与单元测试落地 (`task004`)
+
+### 业务逻辑与算法实现
+- **纯函数计算模块 (`src/lib/weekly-report/`)**：
+  - `types.ts`：定义完整的周报、各模块指标快照、手写填报及日期周期数据结构。
+  - `date-helper.ts`：以系统当前日期计算自然周（周一至周日）及 `M.D-M.D` 标准标题格式。
+  - `file-recognizer.ts`：前缀与表头特征识别器（精准分流 QC头条、生产头条、OKR、新随拍、精益、综合点检）。
+  - `excel-parser.ts`：基于 `xlsx` 库的 ArrayBuffer / Buffer 行对象解析与去重辅助。
+  - `department-normalizer.ts`：班组归一（“一组/一部” $\rightarrow$ “智造一部”）与全量真实部门动态提取。
+  - `metrics-calculator.ts`：开卡数、超24h/48h停机/处理、车间与部门分布占比、环比增长率计算。
+  - `report-generator.ts`：微信群标准格式纯文本周报与企业微信 Markdown 格式化拼装生成器。
+- **单元测试**：
+  - 新增 `src/__tests__/lib/weekly-report.test.ts`，涵盖 6 大测试套件，全面覆盖 4 个真实 Excel 文件的解析与指标计算。
+  - 运行 `npm test`，全量 6 个测试套件 47 个用例 100% 通过。
+
+---
+
+## [2026-08-30] - 周报数据模型扩展与 Prisma Client 升级 (`task003`)
+
+### 数据库与数据模型
+- **模型扩展**：
+  - 在 `prisma/schema.prisma` 中新增 `WeeklyReport` 模型，支持周度周期（`startDate`, `endDate`, `year`, `weekNumber`）、指标快照（`metrics` JSON）、手动填报（`manualSections` JSON）、启用模块（`activeModules` JSON）、微信周报内容（`content` / `markdownContent`）以及企微机器人推送记录（`isPushedToWecom`, `pushedAt`）。
+  - 在 `User` 模型中建立与 `WeeklyReport` 的一对多关联。
+  - 重新执行 `npx prisma generate`，生成最新 TypeScript ORM 类型定义。
+
+---
+
+## [2026-08-30] - 海铭德系统使用情况周报自动总结阶段开启 (`task002`)
+
+### 阶段管理与架构脚手架
+- **阶段开启**：
+  - 按照 AGENTS.md 规范开启研发阶段 `phase-weekly-report-20260830`。
+  - 创建阶段标准文档集：`spec_weekly_report.md`、`plan_weekly_report.md`、`task_weekly_report.md`、`change_weekly_report.md`。
+  - 更新 `.phrase/docs/CHANGE.md` 活跃阶段指向与历史归档回溯。
+  - 完成企微群机器人 Webhook (`https://qyapi.weixin.qq.com/...`) 联调测试，返回 `{"errcode": 0, "errmsg": "ok"}` 确认可用。
+
+---
+
+## [2026-08-30] - 系统全量模块与功能全景架构梳理
+
+### 文档驱动与系统全景
+- **业务模块与架构梳理**：
+  - 新增 [docs/guide/project-modules-and-features.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/project-modules-and-features.md)，全面梳理 7 大业务模块（工作台概览、日报填报、任务看板与工时、知识库/案例沉淀、数据分析、AI 总结、后台管理）及底层支撑模块。
+  - 梳理 Prisma 数据模型与实体关系全景表（`User`, `DailyReport`, `Task`, `TaskLog`, `Issue`, `AISummary`, `Question`, `QuickLink`, `SystemConfig`）。
+  - 更新 [docs/README.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/README.md) 全局文档索引与路由表。
+
+---
+
 ## [2026-08-24] - 落地 Doc-Driven 项目管理脚手架与跨 Agent 规则库 (`task001`)
 
 ### 新增与工程治理
