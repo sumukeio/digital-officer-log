@@ -60,27 +60,14 @@ export async function getLastWeekMetrics(
       targetWeek = 52; // 跨年兜底
     }
 
-    // 优先按 (year, weekNumber) 精准查找
-    let previousReport = await prisma.weeklyReport.findFirst({
+    // 严格且仅按上一自然周 (targetYear, targetWeek) 精准查找已保存记录
+    const previousReport = await prisma.weeklyReport.findFirst({
       where: {
         year: targetYear,
         weekNumber: targetWeek,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { updatedAt: "desc" },
     });
-
-    // 若无精准周匹配，降级拉取最近一条历史周报
-    if (!previousReport) {
-      previousReport = await prisma.weeklyReport.findFirst({
-        where: {
-          OR: [
-            { year: { lt: year } },
-            { AND: [{ year }, { weekNumber: { lt: weekNumber } }] },
-          ],
-        },
-        orderBy: [{ year: "desc" }, { weekNumber: "desc" }],
-      });
-    }
 
     if (!previousReport || !previousReport.metrics) {
       return null;

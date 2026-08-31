@@ -173,8 +173,17 @@ export function PeriodSelector({
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
               <span>上周基准值</span>
-              {baseline && (
-                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+              {Boolean(
+                baseline &&
+                (baseline.productionTotal !== undefined ||
+                  baseline.qcTotal !== undefined ||
+                  baseline.punchTotal !== undefined ||
+                  baseline.okrTotal !== undefined ||
+                  baseline.leanTotal !== undefined)
+              ) ? (
+                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="已具备上周基准" />
+              ) : (
+                <span className="text-[11px] text-slate-400 font-normal">(空)</span>
               )}
             </Button>
           </DialogTrigger>

@@ -38,7 +38,7 @@ export function MetricsOverview({ metrics }: MetricsOverviewProps) {
   const renderWowBadge = (rate?: number | null) => {
     if (rate === undefined || rate === null) {
       return (
-        <span className="text-xs text-slate-400 font-normal">首期无环比</span>
+        <span className="text-xs text-slate-400 font-normal">暂无上周基准</span>
       );
     }
     if (rate === 0) {
