@@ -101,6 +101,28 @@ export async function getLastWeekMetrics(
 }
 
 /**
+ * 根据年份和周数获取该周已保存的周报记录 (用于周切换时数据回显)
+ */
+export async function getWeeklyReportByPeriod(
+  year: number,
+  weekNumber: number
+) {
+  try {
+    const report = await prisma.weeklyReport.findFirst({
+      where: {
+        year,
+        weekNumber,
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+    return report;
+  } catch (error) {
+    console.error("按周期查询历史周报失败:", error);
+    return null;
+  }
+}
+
+/**
  * 保存或更新周报记录
  */
 export async function saveWeeklyReport(input: SaveWeeklyReportInput) {

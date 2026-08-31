@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import {
   saveWeeklyReport,
   getLastWeekMetrics,
+  getWeeklyReportByPeriod,
 } from "@/app/actions/weekly-report";
 import {
   Dialog,
@@ -78,6 +79,7 @@ export default function WeeklySummaryClient({
 
   // 2. 文件与解析数据状态
   const [files, setFiles] = useState<RecognizedFile[]>([]);
+  const [savedMetrics, setSavedMetrics] = useState<AllWeeklyMetrics>({});
   const [manualSections, setManualSections] = useState<ManualSections>(DEFAULT_MANUAL_SECTIONS);
   const [activeModules, setActiveModules] = useState<Record<string, boolean>>({
     production: true,
@@ -104,20 +106,51 @@ export default function WeeklySummaryClient({
   const [isSaving, setIsSaving] = useState(false);
   const [historyList, setHistoryList] = useState<any[]>(initialHistoryReports);
 
-  // 切换周期时，自动拉取对应上周的基准
+  // 切换周期时：1. 自动清空临时上传文件列表；2. 拉取基准；3. 智能回显已保存周报或重置看板
   useEffect(() => {
     let ignore = false;
-    const fetchBaseline = async () => {
+    
+    // 每次切换周期时，清空当前临时解析的文件列表，避免跨周数据混淆
+    setFiles([]);
+
+    const syncPeriodData = async () => {
       try {
-        const fetched = await getLastWeekMetrics(dateRange.year, dateRange.weekNumber);
-        if (!ignore && fetched) {
-          setBaseline(fetched);
+        // 1. 获取对应上周环比基准
+        const fetchedBaseline = await getLastWeekMetrics(dateRange.year, dateRange.weekNumber);
+        if (!ignore) {
+          setBaseline(fetchedBaseline);
+        }
+
+        // 2. 检查当前切换到的这一周，是否在数据库中已有保存记录
+        const savedReport = await getWeeklyReportByPeriod(dateRange.year, dateRange.weekNumber);
+        if (!ignore) {
+          if (savedReport) {
+            // 该周此前已保存过：自动回显指标快照与手写内容
+            try {
+              if (savedReport.metrics) {
+                setSavedMetrics(JSON.parse(savedReport.metrics));
+              }
+              if (savedReport.manualSections) {
+                setManualSections(JSON.parse(savedReport.manualSections));
+              }
+              if (savedReport.activeModules) {
+                setActiveModules(JSON.parse(savedReport.activeModules));
+              }
+            } catch (parseErr) {
+              console.error("解析历史周报数据失败:", parseErr);
+            }
+          } else {
+            // 该周为全新的周期（未保存过）：彻底复位为空白待导入状态
+            setSavedMetrics({});
+            setManualSections(DEFAULT_MANUAL_SECTIONS);
+          }
         }
       } catch (err) {
-        console.error("加载上周基准失败:", err);
+        console.error("同步周期数据失败:", err);
       }
     };
-    fetchBaseline();
+
+    syncPeriodData();
     return () => {
       ignore = true;
     };
@@ -136,27 +169,33 @@ export default function WeeklySummaryClient({
 
   // 4. 自动化指标聚合计算
   const metrics: AllWeeklyMetrics = useMemo(() => {
-    const result: AllWeeklyMetrics = {};
+    // 若当前导入了新文件，以新解析的文件计算为准
+    if (files.length > 0) {
+      const result: AllWeeklyMetrics = {};
 
-    for (const file of files) {
-      if (file.moduleType === "production" && activeModules.production !== false) {
-        result.production = calculateProductionMetrics(
-          file.rows,
-          baseline?.productionTotal
-        );
-      } else if (file.moduleType === "qc" && activeModules.qc !== false) {
-        result.qc = calculateQCMetrics(file.rows, baseline?.qcTotal);
-      } else if (file.moduleType === "okr" && activeModules.okr !== false) {
-        result.okr = calculateOKRMetrics(file.rows, baseline?.okrTotal);
-      } else if (file.moduleType === "punch" && activeModules.punch !== false) {
-        result.punch = calculatePunchMetrics(file.rows, baseline?.punchTotal);
-      } else if (file.moduleType === "lean" && activeModules.lean !== false) {
-        result.lean = calculateLeanMetrics(file.rows, baseline?.leanTotal);
+      for (const file of files) {
+        if (file.moduleType === "production" && activeModules.production !== false) {
+          result.production = calculateProductionMetrics(
+            file.rows,
+            baseline?.productionTotal
+          );
+        } else if (file.moduleType === "qc" && activeModules.qc !== false) {
+          result.qc = calculateQCMetrics(file.rows, baseline?.qcTotal);
+        } else if (file.moduleType === "okr" && activeModules.okr !== false) {
+          result.okr = calculateOKRMetrics(file.rows, baseline?.okrTotal);
+        } else if (file.moduleType === "punch" && activeModules.punch !== false) {
+          result.punch = calculatePunchMetrics(file.rows, baseline?.punchTotal);
+        } else if (file.moduleType === "lean" && activeModules.lean !== false) {
+          result.lean = calculateLeanMetrics(file.rows, baseline?.leanTotal);
+        }
       }
+
+      return result;
     }
 
-    return result;
-  }, [files, baseline, activeModules]);
+    // 若未上传新文件，展示已保存的历史指标（若为全新周则为 {} 空状态）
+    return savedMetrics;
+  }, [files, savedMetrics, baseline, activeModules]);
 
   // 5. 生成的最终周报文本
   const plainTextReport = useMemo(() => {
