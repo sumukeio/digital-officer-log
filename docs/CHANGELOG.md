@@ -5,6 +5,20 @@
 
 ---
 
+## [2026-08-31] - 上周指标基准严格周期匹配与空值修复
+
+### 算法与逻辑严谨性优化
+- **基准严格 1 对 1 自然周绑定 (`src/app/actions/weekly-report.ts`)**：
+  - 彻底移除了 `getLastWeekMetrics` 中“无匹配时降级拉取最新周报”的跨周模糊兜底逻辑；
+  - 确保第 N 周的基准值**只能精准查询第 N-1 周**已保存的数据；如果第 N-1 周未录入过周报，基准值严格返回 `null`。
+- **UI 指示与环比文案优化**：
+  - [PeriodSelector.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/components/weekly-report/PeriodSelector.tsx)：当上周无基准数据时，清晰标识为 `(空)`；
+  - [MetricsOverview.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/components/weekly-report/MetricsOverview.tsx)：当无上周基准时，环比标签规范显示为「暂无上周基准」。
+- **自动化测试**：
+  - 执行 `npm test`，全量 8 个测试套件 61 个测试用例 100% 绿色通过。
+
+---
+
 ## [2026-08-31] - 周维度数据隔离与自动重置/历史回显功能
 
 ### 业务与交互优化
