@@ -6,9 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { saveSystemConfig, saveQuickLink, deleteQuickLink } from "@/app/actions/admin";
+import {
+  saveSystemConfig,
+  saveQuickLink,
+  deleteQuickLink,
+  saveDailyReminderConfig,
+  triggerTestReminderAction,
+} from "@/app/actions/admin";
 import { toast } from "sonner";
-import { Plus, Trash2, Link as LinkIcon, UploadCloud, Monitor, Bot } from "lucide-react";
+import { Plus, Trash2, Link as LinkIcon, UploadCloud, Monitor, Bot, Bell, Clock, Send } from "lucide-react";
 
 interface QuickLink {
   id: string;
@@ -131,7 +137,133 @@ export default function SystemForm({ config, links }: { config: Record<string, s
         </CardContent>
       </Card>
 
-      {/* 3. 快捷链接管理 */}
+      {/* 3. 企业微信日报定时催报管理 */}
+      <Card className="border-amber-200/80 shadow-xs">
+        <CardHeader className="bg-amber-50/40 border-b border-amber-100">
+          <CardTitle className="flex items-center justify-between text-base">
+            <span className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-amber-600" /> 企业微信日报定时催报管理
+            </span>
+            <span className="text-xs font-normal text-slate-500">自动定时推送催写日报</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-5">
+          <form
+            action={async (formData) => {
+              setLoading(true);
+              try {
+                await saveDailyReminderConfig(formData);
+                toast.success("日报催报配置已保存！");
+              } catch (e: any) {
+                toast.error("保存失败: " + e?.message);
+              } finally {
+                setLoading(false);
+              }
+            }}
+            className="space-y-5"
+          >
+            {/* 开关与时间 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-3.5 bg-slate-50 rounded-xl border">
+              <div className="flex items-center justify-between pr-4">
+                <div>
+                  <Label className="text-sm font-bold text-slate-800">启用每日定时催报</Label>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    开启后将在设定时间向企微群推送提醒
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  name="reminder_enabled"
+                  defaultChecked={config.DAILY_REMINDER_ENABLED !== "false"}
+                  className="w-5 h-5 accent-blue-600 rounded cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm font-bold text-slate-800">每日推送时间 (上海时区)</Label>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                  <Input
+                    type="time"
+                    name="reminder_time"
+                    defaultValue={config.DAILY_REMINDER_TIME || "18:00"}
+                    className="max-w-[140px] font-mono text-sm bg-white"
+                  />
+                  <span className="text-xs text-slate-400">例如: 18:00 下班前催报</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Webhook 专属覆盖地址 */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-bold text-slate-800">
+                企业微信机器人 Webhook 地址 (可选)
+              </Label>
+              <Input
+                name="reminder_webhook"
+                defaultValue={config.DAILY_REMINDER_WEBHOOK || ""}
+                placeholder="留空则默认使用全局环境变量 WECOM_WEBHOOK_URL"
+                className="font-mono text-xs"
+              />
+              <p className="text-xs text-slate-400">
+                支持单独为日报提醒指定专属的企业微信群机器人 Webhook 地址。
+              </p>
+            </div>
+
+            {/* Markdown 文案模板 */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label className="text-sm font-bold text-slate-800">
+                  推送 Markdown 消息模板
+                </Label>
+                <div className="flex gap-1.5 text-[11px] text-slate-500">
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded font-mono">{"{date}"} 日期</span>
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded font-mono">{"{count}"} 填报人数</span>
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded font-mono">{"{url}"} 工作台链接</span>
+                </div>
+              </div>
+              <textarea
+                name="reminder_template"
+                defaultValue={
+                  config.DAILY_REMINDER_TEMPLATE ||
+                  `### 🔔 数字官日报提醒\n\n下午好！今天是 {date}。\n\n📊 **今日填报进度：{count} 人已提交**\n\n好官，工作了一天，辛苦啦，该写日报了哦~\n\n[点击跳转工作台]({url})`
+                }
+                rows={6}
+                className="w-full px-3 py-2 border rounded-lg resize-y font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
+                {loading ? "保存中..." : "保存催报配置"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={async () => {
+                  toast.info("正在发送测试推送至企业微信群...");
+                  try {
+                    const res = await triggerTestReminderAction();
+                    if (res?.success) {
+                      toast.success(`🎉 测试推送成功！今日统计: ${res.count} 人提交`);
+                    } else {
+                      toast.error("推送失败: " + (res?.message || "未知错误"));
+                    }
+                  } catch (e: any) {
+                    toast.error("测试发送异常: " + e?.message);
+                  }
+                }}
+                className="border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 flex items-center gap-1.5 text-xs"
+              >
+                <Send className="w-3.5 h-3.5" /> 立即测试发送到群
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* 4. 快捷链接管理 */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">

@@ -276,6 +276,58 @@ export async function saveSystemConfig(formData: FormData) {
   revalidatePath("/admin/system");
 }
 
+export async function saveDailyReminderConfig(formData: FormData) {
+  try {
+    const enabled = formData.get("reminder_enabled") === "on" ? "true" : "false";
+    const time = (formData.get("reminder_time") as string) || "18:00";
+    const template = formData.get("reminder_template") as string;
+    const webhook = (formData.get("reminder_webhook") as string) || "";
+
+    await prisma.systemConfig.upsert({
+      where: { key: "DAILY_REMINDER_ENABLED" },
+      update: { value: enabled },
+      create: { key: "DAILY_REMINDER_ENABLED", value: enabled },
+    });
+
+    await prisma.systemConfig.upsert({
+      where: { key: "DAILY_REMINDER_TIME" },
+      update: { value: time },
+      create: { key: "DAILY_REMINDER_TIME", value: time },
+    });
+
+    if (template !== null) {
+      await prisma.systemConfig.upsert({
+        where: { key: "DAILY_REMINDER_TEMPLATE" },
+        update: { value: template },
+        create: { key: "DAILY_REMINDER_TEMPLATE", value: template },
+      });
+    }
+
+    if (webhook !== null) {
+      await prisma.systemConfig.upsert({
+        where: { key: "DAILY_REMINDER_WEBHOOK" },
+        update: { value: webhook },
+        create: { key: "DAILY_REMINDER_WEBHOOK", value: webhook },
+      });
+    }
+
+    revalidatePath("/admin/system");
+    return { success: true };
+  } catch (error: any) {
+    console.error("保存催报配置失败:", error);
+    throw new Error(
+      error?.message?.includes("Can't reach database server")
+        ? "本地尚未启动 PostgreSQL 数据库服务 (127.0.0.1:5432)。部署到服务器或启动本地数据库后即可正常持久化保存。"
+        : error?.message || "数据库写入失败"
+    );
+  }
+}
+
+export async function triggerTestReminderAction() {
+  const { sendDailyReminder } = await import("@/lib/cron");
+  return await sendDailyReminder(true);
+}
+
 // =========================================================
 // 6. 快捷链接管理 (Quick Links)
 // =========================================================

@@ -13,7 +13,7 @@ import {
   LogOut, PlusCircle, KeyRound, Loader2, Bot,
   Settings2, BarChart3, User, MapPin, BadgeCheck,
   UserCircle, LayoutTemplate, BookOpen, ExternalLink,
-  ClipboardList, Bell, History, FileSpreadsheet
+  ClipboardList, Bell, History, FileSpreadsheet, Clock
 } from "lucide-react";
 import { UpdateAnnouncementDialog } from "@/components/UpdateAnnouncement";
 import { logout, changePassword } from "@/app/actions/auth";
@@ -155,11 +155,19 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
            <Button variant="ghost" size="sm" onClick={() => router.push('/weekly-summary')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 ml-1">
              <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> <span className="font-medium">周报生成</span>
            </Button>
+           <Button variant="ghost" size="sm" onClick={() => router.push('/shifts')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-amber-600 hover:bg-amber-50 ml-1">
+             <Clock className="w-4 h-4 text-amber-600" /> <span className="font-medium">转班提醒</span>
+           </Button>
+           <Button variant="ghost" size="sm" onClick={() => router.push('/badge')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 ml-1">
+             <BadgeCheck className="w-4 h-4 text-blue-600" /> <span className="font-medium">工牌生成</span>
+           </Button>
          </div>
          <div className="flex items-center gap-2">
             {/* 移动端/管理员按钮等 */}
-            <Button variant="ghost" size="icon" onClick={() => router.push('/tasks')} className="sm:hidden text-slate-600"><ClipboardList className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => router.push('/tasks')} className="sm:hidden text-slate-600" title="任务看板"><ClipboardList className="w-5 h-5" /></Button>
             <Button variant="ghost" size="icon" onClick={() => router.push('/weekly-summary')} className="sm:hidden text-slate-600" title="周报生成"><FileSpreadsheet className="w-5 h-5 text-emerald-600" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => router.push('/shifts')} className="sm:hidden text-slate-600" title="转班提醒"><Clock className="w-5 h-5 text-amber-600" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => router.push('/badge')} className="sm:hidden text-slate-600" title="工牌生成"><BadgeCheck className="w-5 h-5 text-blue-600" /></Button>
             <Button variant="ghost" size="icon" onClick={() => router.push('/knowledge')} className="sm:hidden text-slate-600"><BookOpen className="w-5 h-5" /></Button>
             {isAdmin && (
               <>

@@ -2,16 +2,23 @@ export async function register() {
   // 确保只在 Node.js 服务端运行时执行 (避免构建时触发)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const cron = await import("node-cron");
-    const { sendDailyReminder } = await import("@/lib/cron");
+    const { checkAndRunDailyReminder, sendDailyShiftCheck } = await import("@/lib/cron");
 
-    console.log("⏰ 定时任务服务已启动 (Zeabur Mode)...");
+    console.log("⏰ 定时任务服务已启动 (Zeabur / Docker Mode)...");
 
-    // 每天 16:45 执行 (秒 分 时 日 月 星期)
-    cron.schedule("0 04 18 * * *", async () => {
-      console.log("🚀 触发每日定时提醒...");
-      await sendDailyReminder();
+    // 1. 每天 08:00 (上海时区) 执行每日转班排班检查 (提前1天强预警)
+    cron.schedule("0 0 8 * * *", async () => {
+      console.log("🚀 触发每日 08:00 转班排班检查...");
+      await sendDailyShiftCheck();
     }, {
-      timezone: "Asia/Shanghai" // ⚠️ 必须加这个，否则 Zeabur 服务器默认是 UTC 时间 (会变成凌晨00:45发)
+      timezone: "Asia/Shanghai"
+    });
+
+    // 2. 每分钟巡检一次是否到达后台设定的日报催报时分 (支持后台动态改时间/开关，无需重启服务)
+    cron.schedule("* * * * *", async () => {
+      await checkAndRunDailyReminder();
+    }, {
+      timezone: "Asia/Shanghai"
     });
   }
 }

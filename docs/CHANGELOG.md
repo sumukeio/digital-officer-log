@@ -5,6 +5,134 @@
 
 ---
 
+## [2026-09-01] - 企业微信日报定时催报可视化管理中心落地
+
+### 运维与配置管理
+- **系统设置中心 (`src/app/admin/system/`)**：
+  - 在系统配置页面中新增「🔔 企业微信日报定时催报管理」控制卡片；
+  - **定时推送总开关**：一键开启/停用自动催报，停用后后台定时任务彻底跳过；
+  - **动态推送时间设置**：可视化选择每天推送时间（如 18:00），分钟级巡检机制，后台修改后无需重启服务器立即生效；
+  - **Markdown 模板自定义与变量插槽**：支持自由修改推送文案，内置 `{date}`、`{count}`、`{url}` 动态变量替换；
+  - **独立 Webhook 与一键测试**：支持指定专属 Webhook，提供「立即测试发送到群」按钮实时验证群消息效果。
+- **自动化测试 (`src/__tests__/lib/daily-reminder.test.ts`)**：
+  - 新增 4 个单元测试用例，覆盖开关控制、变量替换、测试模式前缀与 Server Action 持久化；
+  - 执行 `npm test`，全量 14 个测试套件 103 个测试用例 100% 绿色通过。
+
+---
+
+## [2026-09-01] - 万得福工牌设计器 2.0 自由坐标参数系统重构
+
+### 前端画布与设计器升级
+- **设计器控制面板 (`src/app/badge/badge-client.tsx`)**：
+  - 100% 对齐原 Python 版（`app.py`）600x1000 坐标系统与万得福出厂满意预设；
+  - 提供左上角 Logo（X/Y/Size/图片替换）、公司标志（X/Y/高/字标替换）、右上角二维码（X/Y/Size）、照片框（X/Y/宽/高）、底部中英文字与下划线（起始Y/行距/标签X/数值X/数值宽/字号）全套自由滑动条；
+  - 新增「🔒 设计已锁定 / 🔓 自由编辑模式」切换开关，防止日常操作误触；
+  - 新增「↺ 恢复默认参数」按钮与 `localStorage` 本地参数持久化记忆。
+- **高保真卡片与打印 (`src/components/badge/`)**：
+  - [BadgeCard.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/components/badge/BadgeCard.tsx)：重构为基于 600x1000 相对缩放的纯白卡片与两端对齐带下划线经典排版；
+  - [A4PrintSheet.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/components/badge/A4PrintSheet.tsx)：支持 3x3 经典拼版网格与毫米级裁切十字线输出。
+- **自动化测试**：
+  - 运行 `npm test`：13 个测试套件 99 个用例 100% 绿色通过；
+  - 运行 `next build`：生产编译成功，0 错误 0 警告。
+
+---
+
+## [2026-09-01] - 全局导航入口集成、生产环境全量构建与 Phase 闭环 (`task014`)
+
+### 导航与入口
+- **工作台主页导航 (`src/app/dashboard-client.tsx`)**：
+  - 顶部导航栏添加「转班提醒」（`/shifts`）与「工牌生成」（`/badge`）快捷 Tab；
+  - 移动端浮动操作区同步增加对应图标入口。
+
+### 文档与全量构建
+- **文档更新**：
+  - [docs/guide/project-modules-and-features.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/project-modules-and-features.md)：追加转班提醒小助手与智能工牌制作工作台业务全景说明。
+- **全量测试与构建验证**：
+  - 运行 `npm test`：13 个测试套件 99 个测试用例 100% 绿色通过；
+  - 运行 `npm run build`：触发 `prisma generate` 及 Next.js 严格生产编译，全部 19 个路由页面编译成功，0 错误 0 警告。
+
+---
+
+## [2026-09-01] - 工牌制作前端画布与 A4 拼版打印系统落地 (`task013`)
+
+### 前端页面与打印排版
+- **工牌制作工作台 (`src/app/badge/` 与 `src/components/badge/`)**：
+  - [QRCodeSVG.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/components/badge/QRCodeSVG.tsx)：实现轻量纯前端矢量二维码点阵生成器，保证任意放大与高精打印不失真；
+  - [BadgeCard.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/components/badge/BadgeCard.tsx)：实现 1:1 标准工牌卡片（企业 Logo Header、员工照片框、两端对齐带下划线字段、防伪编码与二维码）；
+  - [A4PrintSheet.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/components/badge/A4PrintSheet.tsx)：实现 A4 多页拼版网格（2列×4行），渲染四角裁切对齐辅助线与 CSS `@media print` 打印规范；
+  - [badge-client.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/app/badge/badge-client.tsx)：实现 Excel 批量拖拽导入、模板下载、系统数字官一键载入、单条快速添加、多选勾选与实时 1:1 缩放预览。
+- **自动化测试 (`src/__tests__/components/BadgePage.test.tsx`)**：
+  - 新增 5 个组件测试用例，覆盖单卡渲染、A4 拼版、表格勾选、单条录入与配置弹窗；
+  - 执行 `npm test`，全量 13 个测试套件 99 个测试用例 100% 绿色通过。
+
+---
+
+## [2026-09-01] - 工牌制作核心解析模块与数据转换落地 (`task012`)
+
+### 核心模型与数据解析
+- **工牌核心纯函数库 (`src/lib/badge/`)**：
+  - [types.ts](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/lib/badge/types.ts)：定义工牌实体数据模型（`BadgeItem`）、工牌模板配置（`BadgeTemplateConfig`）与标准示例数据；
+  - [excel-importer.ts](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/lib/badge/excel-importer.ts)：实现 Excel 批量数据导入与多表头模糊适配（`parseBadgeExcel`）、标准模板生成（`generateBadgeExcelTemplate`）以及系统数字官用户一键转工牌实体（`convertUsersToBadges`）。
+- **自动化测试 (`src/__tests__/lib/badge.test.ts`)**：
+  - 新增 6 个单元测试用例，覆盖日期格式化、Excel 导入导出双向解析校验与用户模型映射；
+  - 执行 `npm test`，全量 12 个测试套件 94 个测试用例 100% 绿色通过。
+
+---
+
+## [2026-09-01] - 转班小助手前端管理看板与交互组件落地 (`task011`)
+
+### 前端页面与交互体验
+- **转班小助手看板 (`src/app/shifts/`)**：
+  - [page.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/app/shifts/page.tsx)：实现服务端页面渲染与初始数据预加载；
+  - [shift-client.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/app/shifts/shift-client.tsx)：构建完整的响应式管理控制台，包含今日/明日/在册统计卡片、明日转班重点预警横幅、白夜班颜色徽章（☀️/🌙）、排班表格以及新增/编辑 Dialog 弹窗与企微配置 Dialog 弹窗；
+  - **企微卡片实时预览**：支持在弹窗中渲染 Markdown 原生样式，并提供一键复制与测试发送至群。
+- **自动化测试 (`src/__tests__/components/ShiftsPage.test.tsx`)**：
+  - 新增 3 个组件测试用例，覆盖指标渲染、排班列表、新增员工弹窗与配置弹窗交互；
+  - 执行 `npm test`，全量 11 个测试套件 88 个测试用例 100% 绿色通过。
+
+---
+
+## [2026-09-01] - 转班小助手 Server Actions、持久化与系统定时任务集成 (`task010`)
+
+### 后端服务与定时任务
+- **Server Actions 服务 (`src/app/actions/shifts.ts`)**：
+  - `getShiftData`：读取数据库持久化排班员工与配置，执行内存推演与历史过期自愈修正；
+  - `addShiftWorker` / `updateShiftWorker` / `deleteShiftWorker`：提供原子化排班人员增删改操作；
+  - `saveShiftConfig`：支持配置企业微信 Webhook 地址与默认转班周期；
+  - `triggerShiftNotification`：支持手动一键测试推送与全员排班播报。
+- **系统定时任务 (`src/lib/cron.ts` / `src/instrumentation.ts`)**：
+  - 在全局定时任务中注册每日 08:00（`0 0 8 * * *`）自动巡检任务（`sendDailyShiftCheck`），实现无服务器依赖的自动预警。
+- **自动化测试 (`src/__tests__/actions/shifts.test.ts`)**：
+  - 编写 9 个单元测试用例，覆盖查询、新增、修改、删除、配置保存、手动推送与 Cron 调度；
+  - 执行 `npm test`，全量 10 个测试套件 85 个测试用例 100% 绿色通过。
+
+---
+
+## [2026-09-01] - 转班小助手核心算法与企微推送模块落地 (`task009`)
+
+### 核心算法与企微推送
+- **转班核心纯函数库 (`src/lib/shifts/`)**：
+  - [types.ts](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/lib/shifts/types.ts)：定义员工排班契约、转班预警、状态标签与全局配置接口；
+  - [shift-algorithm.ts](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/lib/shifts/shift-algorithm.ts)：实现白夜班智能翻转（`flipShift`）、日期时区安全解析（`parseDateSafe`）、历史过期自动自愈推算（`selfHealWorker`）、状态倒计时标签计算（`calculateWorkerStatus`）以及推演排班（`processShiftSchedule`）；
+  - [wecom-notifier.ts](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/lib/shifts/wecom-notifier.ts)：实现高可读性的企业微信群机器人 Markdown 消息卡片构建（`buildShiftMarkdownMessage`）与 Axios 推送服务（`sendWecomShiftNotice`）。
+- **自动化测试 (`src/__tests__/lib/shifts.test.ts`)**：
+  - 新增 15 个单元测试用例，覆盖班次翻转、日期解析、自愈推算、明日转班预警、Markdown 生成与 Webhook 请求 mock；
+  - 执行 `npm test`，全量 9 个测试套件 76 个测试用例 100% 绿色通过。
+
+---
+
+## [2026-09-01] - 阶段初始化：智能工牌制作工作台与转班提醒小助手全栈融合 (`task008`)
+
+### 阶段管理与架构设计
+- **阶段开启 (`phase-tools-integration-20260901`)**：
+  - 确立将原 Python 独立工具（`gongpai` 工牌生成系统、`zhuanbantixingxiaozhushou` 转班小助手）重构为 Next.js 纯全栈模块的技术路径；
+  - 完成阶段规格书（`spec_tools_integration.md`）、架构计划（`plan_tools_integration.md`）、任务清单（`task_tools_integration.md`）与变更日志（`change_tools_integration.md`）初始化；
+  - 在 `.phrase/docs/CHANGE.md` 中更新当前进行阶段与索引。
+- **自动化测试**：
+  - 执行 `npm test`，全量 8 个测试套件 61 个测试用例 100% 绿色通过。
+
+---
+
 ## [2026-08-31] - 上周指标基准严格周期匹配与空值修复
 
 ### 算法与逻辑严谨性优化

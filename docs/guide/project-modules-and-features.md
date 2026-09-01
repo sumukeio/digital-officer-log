@@ -131,7 +131,28 @@ graph TD
 
 ---
 
-### 8. 基础设施与底层支撑 (Infrastructure & Core Libs)
+### 8. 转班提醒与排班小助手 (Shift Assistant)
+- **路由路径**：`/shifts`
+- **核心逻辑**：`src/lib/shifts/`, `src/app/actions/shifts.ts`, `src/app/shifts/`
+- **主要功能**：
+  1. **自愈推算与排班推演**：自动过期修正、白夜班（☀️/🌙）智能翻转，精确计算【今天转班】、【明天转班】、N天后等倒计时状态。
+  2. **企业微信 Markdown 消息**：自动生成格式优雅的通知卡片，支持实时预览与测试一键推群。
+  3. **定时自动巡检**：接入 `src/instrumentation.ts`，每日早晨 08:00 自动扫描全员排班并在有人员转班时向群内发布强预警。
+
+---
+
+### 9. 智能工牌制作工作台 (Badge Studio)
+- **路由路径**：`/badge`
+- **核心逻辑**：`src/lib/badge/`, `src/app/badge/`, `src/components/badge/`
+- **主要功能**：
+  1. **1:1 WYSIWYG 实时预览**：标准 54mm × 86mm (CR80) 矢量工牌卡片，支持自定义企业 Logo、Header 配色、照片框与两端对齐字段。
+  2. **矢量二维码生成**：内置纯前端 SVG 二维码点阵，告别位图拉伸发虚。
+  3. **批量 Excel 导入与在册数字官一键同步**：支持拖拽导入 Excel、下载标准模版、一键读取数字官用户列表。
+  4. **高精 A4 拼版打印**：2列×4行网格布局，配备四角裁切辅助十字线，配合浏览器 `@media print` 输出清晰矢量打印或 PDF。
+
+---
+
+### 10. 基础设施与底层支撑 (Infrastructure & Core Libs)
 - **模块目录**：`src/lib/`, `src/app/actions/auth.ts`, `src/app/api/`
 - **主要支撑**：
   1. **统一认证与鉴权**：基于 Cookie / Session 机制的轻量身份鉴权，支持工号免复杂注册及首次登录强制改密提醒。
