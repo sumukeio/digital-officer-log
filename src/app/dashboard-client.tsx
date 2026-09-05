@@ -55,7 +55,7 @@ interface DashboardClientProps {
 export default function DashboardClient({ submittedDates, currentUser, quickLinks }: DashboardClientProps) {
   const router = useRouter();
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const isAdmin = currentUser.roles.some(r => r.name === 'admin');
+  const isAdmin = currentUser?.roles?.some(r => r.name === 'admin') ?? false;
 
   // 修复 Hydration Mismatch
   const [mounted, setMounted] = useState(false);
@@ -393,11 +393,17 @@ function UserProfileDialog({ user }: { user: DashboardClientProps['currentUser']
 }
 
 function ForceChangePasswordDialog({ open }: { open: boolean }) {
-  // ...原来的代码
   const [state, action, isPending] = useActionState(changePassword, null);
-  useEffect(() => { if (state?.success) { toast.success("密码修改成功，系统将自动刷新"); setTimeout(() => window.location.reload(), 1500); } else if (state?.success === false) { toast.error(state.message); } }, [state]);
+  useEffect(() => { 
+    if (state?.success) { 
+      toast.success("密码修改成功，正在进入系统..."); 
+      setTimeout(() => window.location.reload(), 1200); 
+    } else if (state?.success === false) { 
+      toast.error(state.message || "修改密码失败"); 
+    } 
+  }, [state]);
   return (
-    <Dialog open={open}>
+    <Dialog open={Boolean(open)}>
       <DialogContent className="[&>button]:hidden pointer-events-auto" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
         <DialogHeader><DialogTitle className="text-red-600 flex items-center gap-2"><KeyRound className="w-5 h-5" /> 安全警告：请修改初始密码</DialogTitle></DialogHeader>
         <div className="text-sm text-slate-500 mb-4 bg-red-50 p-3 rounded border border-red-100">为了您的数据安全，首次登录必须将初始密码 (123456) 修改为您的个人密码。</div>

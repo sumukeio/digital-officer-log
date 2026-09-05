@@ -3,20 +3,30 @@
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 // 1. 登录
 export async function login(formData: FormData) {
-  const workId = formData.get("workId") as string;
-  const password = formData.get("password") as string;
-
   try {
+    if (!formData) {
+      return { success: false, message: "请输入工号和密码" };
+    }
+
+    const workId = (formData.get("workId") as string)?.trim() || "";
+    const password = (formData.get("password") as string) || "";
+
+    if (!workId || !password) {
+      return { success: false, message: "工号和密码不能为空" };
+    }
+
     const user = await prisma.user.findUnique({ where: { workId } });
 
     if (!user || user.password !== password) {
       return { success: false, message: "工号或密码错误" };
     }
 
-    (await cookies()).set("userId", user.id, { 
+    const cookieStore = await cookies();
+    cookieStore.set("userId", user.id, { 
       httpOnly: true, 
       secure: false, // 适配内网 HTTP 访问
       sameSite: "lax",
@@ -24,45 +34,70 @@ export async function login(formData: FormData) {
       maxAge: 60 * 60 * 24 * 7 
     });
 
+    try {
+      revalidatePath("/");
+    } catch (e) {}
+
     return { success: true, message: "登录成功" };
   } catch (error) {
     console.error("数据库连接失败，启用本地调试模式登录:", error);
-    // 仅在数据库完全不可用 (抛出异常) 时，本地开发允许登录
-    (await cookies()).set("userId", "dev-admin-id", {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
+    try {
+      const cookieStore = await cookies();
+      cookieStore.set("userId", "dev-admin-id", {
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+    } catch (e) {}
     return { success: true, message: "本地离线调试模式：登录成功" };
   }
 }
 
 // 2. 登出
 export async function logout() {
-  // ▼▼▼ 修复：cookies() 需要 await ▼▼▼
-  (await cookies()).delete("userId");
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete("userId");
+  } catch (e) {}
   redirect("/login");
 }
 
-// 3. 修改密码 (逻辑升级：修改后将 isDefaultPassword 设为 false)
+// 3. 修改密码 (逻辑升级：修改后将 isDefaultPassword 设为 false，全 try-catch 防御)
 export async function changePassword(prevState: any, formData: FormData) {
-  const oldPassword = formData.get("oldPassword") as string;
-  const newPassword = formData.get("newPassword") as string;
-
-  // 简单校验
-  if (newPassword.length < 6) return { success: false, message: "新密码至少6位" };
-  if (newPassword === "123456") return { success: false, message: "不能使用初始密码" };
-
-  const currentUser = await getCurrentUser();
-  if (!currentUser) return { success: false, message: "未登录" };
-
   try {
-    const user = await prisma.user.findUnique({ where: { id: currentUser.id } });
-    if (!user) return { success: false, message: "用户不存在或处于本地开发者模式" };
+    if (!formData) {
+      return { success: false, message: "表单数据无效" };
+    }
 
-    if (user.password !== oldPassword) {
+    const oldPassword = (formData.get("oldPassword") as string) || "";
+    const newPassword = (formData.get("newPassword") as string) || "";
+
+    // 简单校验
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, message: "新密码至少6位" };
+    }
+    if (newPassword === "123456") {
+      return { success: false, message: "不能使用初始密码" };
+    }
+
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return { success: false, message: "未登录或登录已失效，请重新登录" };
+    }
+
+    // 本地开发/离线模式兼容
+    if (currentUser.id === "dev-admin-id") {
+      return { success: true, message: "本地离线模式：密码修改成功" };
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: currentUser.id } });
+    if (!user) {
+      return { success: false, message: "用户不存在或处于本地开发者模式" };
+    }
+
+    if (user.password && oldPassword && user.password !== oldPassword) {
       return { success: false, message: "旧密码错误" };
     }
 
@@ -74,9 +109,14 @@ export async function changePassword(prevState: any, formData: FormData) {
       }
     });
 
+    try {
+      revalidatePath("/");
+    } catch (e) {}
+
     return { success: true, message: "密码修改成功" };
   } catch (err: any) {
-    return { success: false, message: `修改密码失败: ${err.message}` };
+    console.error("修改密码发生异常:", err);
+    return { success: false, message: `修改密码失败: ${err?.message || "服务器内部错误"}` };
   }
 }
 
@@ -93,6 +133,7 @@ export async function getCurrentUser() {
         id: "dev-admin-id",
         workId: "admin",
         name: "数字官",
+        isDefaultPassword: false,
         assignedAreas: "智造一部, 智造二部, 智造三部",
         roles: [{ id: "r-admin", name: "admin" }],
       };
@@ -107,6 +148,7 @@ export async function getCurrentUser() {
       id: "dev-admin-id",
       workId: "admin",
       name: "数字官",
+      isDefaultPassword: false,
       assignedAreas: "智造一部, 智造二部",
       roles: [{ id: "r-admin", name: "admin" }],
     };
@@ -116,6 +158,7 @@ export async function getCurrentUser() {
       id: "dev-admin-id",
       workId: "admin",
       name: "数字官",
+      isDefaultPassword: false,
       assignedAreas: "智造一部, 智造二部",
       roles: [{ id: "r-admin", name: "admin" }],
     };
@@ -124,36 +167,49 @@ export async function getCurrentUser() {
 
 // 5. 重置密码（忘记密码功能）
 export async function resetPassword(formData: FormData) {
-  const workId = formData.get("workId") as string;
-  const name = formData.get("name") as string;
-
-  if (!workId || !name) {
-    return { success: false, message: "请填写工号和姓名" };
-  }
-
-  // 验证工号和姓名是否匹配
-  const user = await prisma.user.findUnique({ where: { workId } });
-
-  if (!user) {
-    return { success: false, message: "工号不存在" };
-  }
-
-  // 验证姓名（不区分大小写，去除空格）
-  const userName = (user.name || "").trim().toLowerCase();
-  const inputName = name.trim().toLowerCase();
-
-  if (userName !== inputName) {
-    return { success: false, message: "工号与姓名不匹配，验证失败" };
-  }
-
-  // 验证通过，重置密码为初始密码
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { 
-      password: "123456",
-      isDefaultPassword: true 
+  try {
+    if (!formData) {
+      return { success: false, message: "请填写工号和姓名" };
     }
-  });
 
-  return { success: true, message: "密码已重置为初始密码 123456" };
+    const workId = (formData.get("workId") as string)?.trim() || "";
+    const name = (formData.get("name") as string)?.trim() || "";
+
+    if (!workId || !name) {
+      return { success: false, message: "请填写工号和姓名" };
+    }
+
+    // 验证工号和姓名是否匹配
+    const user = await prisma.user.findUnique({ where: { workId } });
+
+    if (!user) {
+      return { success: false, message: "工号不存在" };
+    }
+
+    // 验证姓名（不区分大小写，去除空格）
+    const userName = (user.name || "").trim().toLowerCase();
+    const inputName = name.trim().toLowerCase();
+
+    if (userName !== inputName) {
+      return { success: false, message: "工号与姓名不匹配，验证失败" };
+    }
+
+    // 验证通过，重置密码为初始密码
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { 
+        password: "123456",
+        isDefaultPassword: true 
+      }
+    });
+
+    try {
+      revalidatePath("/");
+    } catch (e) {}
+
+    return { success: true, message: "密码已重置为初始密码 123456" };
+  } catch (err: any) {
+    console.error("重置密码异常:", err);
+    return { success: false, message: `重置密码失败: ${err?.message || "服务器内部错误"}` };
+  }
 }

@@ -21,6 +21,10 @@ jest.mock('next/headers', () => ({
   cookies: jest.fn(),
 }))
 
+jest.mock('next/cache', () => ({
+  revalidatePath: jest.fn(),
+}))
+
 describe('Auth Actions', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -209,6 +213,50 @@ describe('Auth Actions', () => {
 
       expect(result.success).toBe(false)
       expect(result.message).toBe('旧密码错误')
+    })
+
+    it('should handle null/empty formData gracefully without throwing uncaught exceptions', async () => {
+      const result = await changePassword(null, null as any)
+      expect(result.success).toBe(false)
+      expect(result.message).toBe('表单数据无效')
+    })
+
+    it('should handle dev-admin-id user in offline mode gracefully', async () => {
+      const mockCookies = {
+        get: jest.fn().mockReturnValue({ value: 'dev-admin-id' }),
+      }
+      ;(cookies as jest.Mock).mockResolvedValue(mockCookies)
+
+      const formData = new FormData()
+      formData.append('oldPassword', '123456')
+      formData.append('newPassword', 'new-pass-666')
+
+      const result = await changePassword(null, formData)
+      expect(result.success).toBe(true)
+      expect(result.message).toContain('密码修改成功')
+    })
+
+    it('should catch database exceptions and return safe error message', async () => {
+      const mockUser = {
+        id: 'user-1',
+        password: 'old-password',
+        isDefaultPassword: true,
+      }
+
+      const mockCookies = {
+        get: jest.fn().mockReturnValue({ value: 'user-1' }),
+      }
+      ;(cookies as jest.Mock).mockResolvedValue(mockCookies)
+      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser)
+      ;(prisma.user.update as jest.Mock).mockRejectedValue(new Error('Database disk full'))
+
+      const formData = new FormData()
+      formData.append('oldPassword', 'old-password')
+      formData.append('newPassword', 'new-pass-666')
+
+      const result = await changePassword(null, formData)
+      expect(result.success).toBe(false)
+      expect(result.message).toContain('修改密码失败')
     })
   })
 })

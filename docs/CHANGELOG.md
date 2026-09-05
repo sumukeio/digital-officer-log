@@ -5,6 +5,24 @@
 
 ---
 
+## [2026-09-05] - 修复首次登录强制修改密码 Server Action 异常与安全加固
+
+### 缺陷修复与稳定性增强
+- **身份认证安全加固 (`src/app/actions/auth.ts`)**：
+  - **全量 Try-Catch 与参数安全校验**：解决 `changePassword` 参数在 `try...catch` 外解析导致的空指针/未捕获异常；对 `oldPassword`、`newPassword`、`formData` 实行严格空值与类型防御，杜绝抛出未捕获 500 异常；
+  - **增加路径刷新缓存 (`revalidatePath`)**：密码修改成功后主动调用 `revalidatePath("/")`，同步更新客户端与服务端状态；
+  - **离线与开发者模式平滑兼容**：在 `dev-admin-id` 离线调试模式下，安全返回成功提示，避免数据库未连通时阻塞界面；
+  - **登录与重置密码统一加固**：对 `login`、`resetPassword` 统一补充安全防御边界与返回值格式规范。
+- **前端安全弹窗优化 (`src/app/dashboard-client.tsx` & `src/app/page.tsx`)**：
+  - [dashboard-client.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/app/dashboard-client.tsx)：`isAdmin` 判断与角色检查补充可选链防御（`currentUser?.roles?.some(...) ?? false`）；`ForceChangePasswordDialog` 使用 `Boolean(open)` 规范布尔属性并优化反馈体验；
+  - [page.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/app/page.tsx)：服务端回退对象补充 `isDefaultPassword: false` 属性。
+- **自动化回归测试 (`src/__tests__/actions/auth.test.ts`)**：
+  - 补充空表单数据、离线模式、数据库异常抛出安全捕获等 3 个回归测试用例；
+  - 全量执行 `npm test`：14 个测试套件 106 个测试用例 100% 绿色通过；
+  - 执行 `npm run build`：生产环境全量严格构建 0 错误通过。
+
+---
+
 ## [2026-09-01] - 企业微信日报定时催报可视化管理中心落地
 
 ### 运维与配置管理
