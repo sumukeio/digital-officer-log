@@ -5,9 +5,14 @@
 
 ---
 
-## [2026-09-05] - 修复首次登录强制修改密码 Server Action 异常与安全加固
+## [2026-09-05] - 修复生产环境缺少 OpenAI Key 导致的 Digest:1796960860 崩溃与安全加固
 
 ### 缺陷修复与稳定性增强
+- **OpenAI / AI 模块延迟加载 (`src/app/actions/ai.ts`)**：
+  - **根因根除**：顶层执行 `new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY })` 在服务端未配置该环境变量时会在模块加载阶段直接抛出 `Missing credentials` 致命异常（触发 Next.js 全局崩溃 `Digest: 1796960860`）；
+  - **延迟初始化 (`getOpenAIClient`)**：改为函数内部调用时按需延迟实例化，并增加环境变量兜底判断与友好提示，未配置 Key 时绝不影响工作台主页及任何业务功能。
+- **MinIO S3 客户端延迟加载 (`src/lib/minio.ts`)**：
+  - 改为 `getS3Client` 延迟获取，避免缺失环境变量时产生顶层异常。
 - **身份认证安全加固 (`src/app/actions/auth.ts`)**：
   - **全量 Try-Catch 与参数安全校验**：解决 `changePassword` 参数在 `try...catch` 外解析导致的空指针/未捕获异常；对 `oldPassword`、`newPassword`、`formData` 实行严格空值与类型防御，杜绝抛出未捕获 500 异常；
   - **增加路径刷新缓存 (`revalidatePath`)**：密码修改成功后主动调用 `revalidatePath("/")`，同步更新客户端与服务端状态；

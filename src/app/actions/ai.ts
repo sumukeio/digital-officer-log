@@ -4,19 +4,26 @@ import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "./auth";
 
-const openai = new OpenAI({
-  baseURL: "https://api.lkeap.cloud.tencent.com/v1",
-  apiKey: process.env.DEEPSEEK_API_KEY,
-});
+function getOpenAIClient() {
+  const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || "dummy-key-not-configured";
+  return new OpenAI({
+    baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.lkeap.cloud.tencent.com/v1",
+    apiKey,
+  });
+}
 
 // 获取默认的 AI Prompt（如果配置中没有，使用默认值）
 async function getAIPrompt(): Promise<string> {
-  const config = await prisma.systemConfig.findUnique({
-    where: { key: "ai_summary_prompt" }
-  });
-  
-  if (config && config.value) {
-    return config.value;
+  try {
+    const config = await prisma.systemConfig.findUnique({
+      where: { key: "ai_summary_prompt" }
+    });
+    
+    if (config && config.value) {
+      return config.value;
+    }
+  } catch (e) {
+    console.error("获取 AI Prompt 失败，使用默认 Prompt:", e);
   }
   
   // 默认 Prompt
@@ -101,7 +108,12 @@ ${readableContent}
   // 4. 调用 AI
   let summaryContent = "";
   try {
+    if (!process.env.DEEPSEEK_API_KEY && !process.env.OPENAI_API_KEY) {
+      return "AI 服务未配置 API Key（如需使用 AI 总结功能，请在服务端环境变量中设置 DEEPSEEK_API_KEY）";
+    }
+
     console.log("正在调用腾讯云 DeepSeek API...");
+    const openai = getOpenAIClient();
     const completion = await openai.chat.completions.create({
       messages: [
         { role: "system", content: systemPrompt },

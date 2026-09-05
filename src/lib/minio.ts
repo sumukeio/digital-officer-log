@@ -1,15 +1,17 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
-// 初始化 S3 客户端 (Supabase Storage 兼容 S3 协议)
-const s3Client = new S3Client({
-  region: "us-east-1", // Supabase 这里的 region 不关键，填 us-east-1 即可
-  endpoint: process.env.MINIO_ENDPOINT, // 例如 https://your-project.supabase.co/storage/v1/s3
-  credentials: {
-    accessKeyId: process.env.MINIO_ACCESS_KEY!,
-    secretAccessKey: process.env.MINIO_SECRET_KEY!,
-  },
-  forcePathStyle: true, // 必须开启
-});
+// 延迟初始化 S3 客户端 (Supabase Storage 兼容 S3 协议)
+function getS3Client() {
+  return new S3Client({
+    region: "us-east-1", // Supabase 这里的 region 不关键，填 us-east-1 即可
+    endpoint: process.env.MINIO_ENDPOINT || "https://dummy.supabase.co/storage/v1/s3",
+    credentials: {
+      accessKeyId: process.env.MINIO_ACCESS_KEY || "dummy",
+      secretAccessKey: process.env.MINIO_SECRET_KEY || "dummy",
+    },
+    forcePathStyle: true, // 必须开启
+  });
+}
 
 /**
  * 上传文件到 Supabase Storage
@@ -37,6 +39,7 @@ export async function uploadToMinIO(file: File, bucketName: string): Promise<str
     ACL: "public-read", 
   });
 
+  const s3Client = getS3Client();
   await s3Client.send(command);
 
   // 拼接公开访问链接
