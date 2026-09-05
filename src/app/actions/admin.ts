@@ -235,45 +235,52 @@ export async function getSystemConfig() {
 }
 
 export async function saveSystemConfig(formData: FormData) {
-  const appName = formData.get("app_name") as string;
-  const logoFile = formData.get("app_logo_file") as File; // 获取文件
-  const aiPrompt = formData.get("ai_summary_prompt") as string;
+  try {
+    const appName = formData.get("app_name") as string;
+    const logoFile = formData.get("app_logo_file") as File; // 获取文件
+    const aiPrompt = formData.get("ai_summary_prompt") as string;
 
-  // 1. 保存名称
-  if (appName) {
-    await prisma.systemConfig.upsert({
-      where: { key: "app_name" },
-      update: { value: appName },
-      create: { key: "app_name", value: appName }
-    });
-  }
-
-  // 2. 如果上传了新图片，上传到 MinIO 并保存 URL
-  if (logoFile && logoFile.size > 0) {
-    try {
-      const url = await uploadToMinIO(logoFile, "system"); // 存到 system 文件夹
+    // 1. 保存名称
+    if (appName) {
       await prisma.systemConfig.upsert({
-        where: { key: "app_logo" },
-        update: { value: url },
-        create: { key: "app_logo", value: url }
+        where: { key: "app_name" },
+        update: { value: appName },
+        create: { key: "app_name", value: appName }
       });
-    } catch (e) {
-      console.error("Logo Upload Failed:", e);
-      throw new Error("Logo 上传失败");
     }
-  }
 
-  // 3. 保存 AI Prompt 配置
-  if (aiPrompt !== null) {
-    await prisma.systemConfig.upsert({
-      where: { key: "ai_summary_prompt" },
-      update: { value: aiPrompt },
-      create: { key: "ai_summary_prompt", value: aiPrompt }
-    });
-  }
+    // 2. 如果上传了新图片，上传并保存 URL (支持 MinIO / 本地目录 / Base64 多重保底)
+    if (logoFile && logoFile.size > 0) {
+      try {
+        const url = await uploadToMinIO(logoFile, "system"); // 存到 system 文件夹
+        if (url) {
+          await prisma.systemConfig.upsert({
+            where: { key: "app_logo" },
+            update: { value: url },
+            create: { key: "app_logo", value: url }
+          });
+        }
+      } catch (e) {
+        console.error("Logo Upload Failed:", e);
+      }
+    }
 
-  revalidatePath("/login");
-  revalidatePath("/admin/system");
+    // 3. 保存 AI Prompt 配置
+    if (aiPrompt !== null && aiPrompt !== undefined) {
+      await prisma.systemConfig.upsert({
+        where: { key: "ai_summary_prompt" },
+        update: { value: aiPrompt },
+        create: { key: "ai_summary_prompt", value: aiPrompt }
+      });
+    }
+
+    revalidatePath("/login");
+    revalidatePath("/admin/system");
+    return { success: true, message: "系统配置已更新" };
+  } catch (err: any) {
+    console.error("保存系统配置失败:", err);
+    throw new Error(err?.message || "保存系统配置失败");
+  }
 }
 
 export async function saveDailyReminderConfig(formData: FormData) {

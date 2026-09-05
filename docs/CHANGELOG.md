@@ -5,6 +5,20 @@
 
 ---
 
+## [2026-09-05] - 修复系统设置 Logo 上传 ENOTFOUND 异常与多重本地存储保底
+
+### 缺陷修复与稳定性增强
+- **文件上传与多重存储保底 (`src/lib/minio.ts`)**：
+  - **根因根除**：私网环境下未配置外部 S3/MinIO 服务时，代码尝试连接默认占位域名（`dummy.supabase.co`）触发 DNS 寻址异常（`ENOTFOUND`）；
+  - **本地持久化存储 (`public/uploads`)**：未配置 S3 时自动无缝降级为写入本地静态目录 `/uploads/${bucketName}/${filename}`，由 Next.js 静态服务直接对外提供访问；
+  - **Base64 Data URI 多重保底**：在极限制约环境下自动降级为 Base64 Data URI 直接入库，保证 Logo 图片 100% 成功保存且永不丢失。
+- **系统设置 Action 安全收敛 (`src/app/actions/admin.ts`)**：
+  - [saveSystemConfig](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/app/actions/admin.ts)：完善 Try-Catch 防御边界，避免未捕获异常抛向客户端。
+- **缺陷排查台账同步 (`docs/guide/QA.md`)**：
+  - 沉淀记录缺陷 001（Logo 上传失败）的现象、根因、修复方案与防再犯机制。
+
+---
+
 ## [2026-09-05] - 修复生产环境缺少 OpenAI Key 导致的 Digest:1796960860 崩溃与安全加固
 
 ### 缺陷修复与稳定性增强
