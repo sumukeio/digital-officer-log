@@ -227,6 +227,73 @@ describe('周报自动总结核心纯函数库测试', () => {
       expect(markdown).toContain('海铭德系统使用周报');
       expect(markdown).toContain('生产头条');
       expect(markdown).toContain('font color="warning"');
+      // 验证新增反思说明、综合点检、必应、任务格子、公告与激励
+      expect(markdown).toContain('反思：由于关闭企微提醒');
+      expect(markdown).toContain('综合点检：各部门正常使用中');
+      expect(markdown).toContain('必应与任务格子');
+      expect(markdown).toContain('公告与激励');
+      expect(markdown).toContain('集体培训');
+    });
+
+    it('当取消勾选集体培训时，纯文本和Markdown模板均应剔除培训模块且保持序号连续', () => {
+      const dateRange = getDefaultWeekRange(new Date(2026, 7, 23));
+      const activeModulesWithoutTraining = {
+        production: true,
+        qc: true,
+        punch: true,
+        okr: true,
+        inspection: true,
+        maintenance: true,
+        binying: true,
+        taskGrid: true,
+        training: false, // 取消勾选集体培训
+        rewards: true,
+        bulletin: true,
+        inspectionGeneral: true,
+        dudu: true,
+        lean: false,
+        improvements: true,
+      };
+
+      const plainText = generatePlainTextWeeklyReport({
+        dateRange,
+        metrics: {
+          production: {
+            totalCards: 10,
+            over24Count: 0,
+            over48Count: 0,
+            over48Details: [],
+            workshopStats: [],
+            wowRate: null,
+          },
+        },
+        manualSections: DEFAULT_MANUAL_SECTIONS,
+        activeModules: activeModulesWithoutTraining,
+      });
+
+      // 纯文本中不应包含集体培训
+      expect(plainText).not.toContain('集体培训');
+      // 激励应该紧随任务格子，序号连续自适应
+      expect(plainText).toMatch(/任务格子[\s\S]*?\n\n\d+、激励：/);
+
+      const markdown = generateWeComMarkdownWeeklyReport({
+        dateRange,
+        metrics: {
+          production: {
+            totalCards: 10,
+            over24Count: 0,
+            over48Count: 0,
+            over48Details: [],
+            workshopStats: [],
+            wowRate: null,
+          },
+        },
+        manualSections: DEFAULT_MANUAL_SECTIONS,
+        activeModules: activeModulesWithoutTraining,
+      });
+
+      // Markdown 中不应包含集体培训
+      expect(markdown).not.toContain('集体培训');
     });
   });
 });

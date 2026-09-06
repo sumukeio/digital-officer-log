@@ -134,7 +134,16 @@ export default function WeeklySummaryClient({
                 setManualSections(JSON.parse(savedReport.manualSections));
               }
               if (savedReport.activeModules) {
-                setActiveModules(JSON.parse(savedReport.activeModules));
+                const parsed = JSON.parse(savedReport.activeModules);
+                if (Array.isArray(parsed)) {
+                  const map: Record<string, boolean> = {};
+                  parsed.forEach((k: string) => {
+                    map[k] = true;
+                  });
+                  setActiveModules(map);
+                } else if (parsed && typeof parsed === "object") {
+                  setActiveModules(parsed);
+                }
               }
             } catch (parseErr) {
               console.error("解析历史周报数据失败:", parseErr);
@@ -203,16 +212,18 @@ export default function WeeklySummaryClient({
       dateRange,
       metrics,
       manualSections,
+      activeModules,
     });
-  }, [dateRange, metrics, manualSections]);
+  }, [dateRange, metrics, manualSections, activeModules]);
 
   const markdownReport = useMemo(() => {
     return generateWeComMarkdownWeeklyReport({
       dateRange,
       metrics,
       manualSections,
+      activeModules,
     });
-  }, [dateRange, metrics, manualSections]);
+  }, [dateRange, metrics, manualSections, activeModules]);
 
   // 保存周报到数据库
   const handleSaveReport = async () => {

@@ -3,6 +3,29 @@
 > **权威性声明**：本文档遵循 Keep a Changelog 格式规范，**只追加、不覆盖**。
 > **维护规则**：每次完成 Phase 任务或重要工程/业务交付时，在此以标准格式追加最新记录。
 
+## [2026-09-06] - 企微周报 Markdown 模板内容补全与模块勾选过滤联动优化
+
+### 功能增强与缺陷修复
+- **周报核心生成器 (`src/lib/weekly-report/report-generator.ts`)**：
+  - **企微 Markdown 模板内容全面补齐**：
+    - 补齐反思说明：支持生产头条（`productionReflection`）、QC 头条（`qcReflection`）、新随拍（`punchReflection`）的反思与默认业务文案自动兜底；
+    - 补齐综合点检：在「设备点检与保养」板块中纳入「综合点检」（`inspectionGeneral`）运行情况；
+    - 补齐关键协同板块：补充「必应与任务格子」、「集体培训」、「公告与激励」板块的标准企业微信 Markdown 排版（加粗、引用块、色彩标识）。
+  - **模块勾选过滤与自然序号自适应**：
+    - 纯文本周报与企微 Markdown 周报全面接入 `isModuleActive` 判定；
+    - 兼容历史与现有多种格式（`string[]` 与 `Record<string, boolean>`）；
+    - 修复取消勾选「集体培训」后纯文本与 Markdown 依然渲染的问题；
+    - 实现取消勾选任意模块时，周报内部序号自适应连续递增（1、2、3...），杜绝断号与跳号。
+- **周报前端页面联动 (`src/app/weekly-summary/weekly-summary-client.tsx`)**：
+  - 将 `activeModules` 作为参数传入 `generatePlainTextWeeklyReport` 与 `generateWeComMarkdownWeeklyReport`；
+  - 将 `activeModules` 纳入 `useMemo` 依赖项，保证用户在「周报模板勾选配置」中切换任意开关时，周报文本与预览实时响应；
+  - 增强历史归档周报的 `activeModules` 反序列化安全防御，兼容数组与对象映射。
+- **自动化测试回归 (`src/__tests__/lib/weekly-report.test.ts`)**：
+  - 补充企业微信 Markdown 模板字段完整性验证用例；
+  - 补充取消勾选「集体培训」时的纯文本与 Markdown 过滤及序号重排断言；
+  - 全量 `npm test`：15 个测试套件 109 个测试用例 100% 绿色通过；
+  - 严格构建 `npm run build`：0 错误构建成功。
+
 ---
 
 ## [2026-09-05] - 修复系统设置 Logo 上传 ENOTFOUND 异常与多重本地存储保底
