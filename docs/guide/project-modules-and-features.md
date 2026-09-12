@@ -1,7 +1,7 @@
 # 数字官工作台 — 系统模块与功能全景梳理
 
 > **状态**：[权威/现行]  
-> **更新时间**：2026-08-30  
+> **更新时间**：2026-09-12  
 > **文档定位**：全量业务模块、功能清单与系统技术架构的全景参考文档。
 
 ---
@@ -112,6 +112,18 @@ graph TD
 
 ---
 
+### 6b. 头条周简报（问题—改善—收益）(Headline Brief)
+- **路由路径**：`/headline-brief`
+- **核心逻辑**：`src/lib/headline-brief/`、`src/app/actions/headline-brief.ts`、`src/components/headline-brief/`
+- **主要功能**：
+  1. **粘贴提炼**：将 DeepSeek「问题—改善—收益」长文规则压缩为结构化草稿（问题≤3、改善≤4、收益三类各 1 句）。
+  2. **人工改稿 + 企微短 Markdown**：预览、复制、合并/分模块一键推送（复用 `WECOM_WEBHOOK_URL`）。
+  3. **一页竖版海报 PNG**：同数据源 Canvas 导出，便于群内发图。
+  4. **指标联动**：可从当周已存海铭德 `WeeklyReport.metrics` 生成问题结论骨架。
+  5. **按周存档**：`HeadlineBrief` 模型按用户+年+周唯一持久化。
+
+---
+
 ### 7. 后台管理与配置中心 (Admin Settings)
 - **路由路径**：`/admin/users`, `/admin/template`, `/admin/system`
 - **核心逻辑**：`src/app/actions/admin.ts`
@@ -176,6 +188,8 @@ graph TD
 | **`TaskLog`** | 任务操作日志表 | 存储任务每次变动的操作人 (`operatorId`/`operatorName`)、动作类型 (`action`)、变更详情与时间戳。 |
 | **`Issue`** | 故障案例表 | 存储问题标题、现象描述与故障图片、解决方案描述与改善后图片，关联创建用户。 |
 | **`AISummary`** | AI 总结记录表 | 存储 AI 生成的周报/月报 Markdown 内容、统计起止时间 (`startDate`/`endDate`)，关联用户。 |
+| **`WeeklyReport`** | 海铭德指标周报表 | 存储 Excel 解析指标快照、手写板块、企微 Markdown 与推送状态。 |
+| **`HeadlineBrief`** | 头条周简报表 | 存储「问题—改善—收益」结构化 modules JSON、合并 Markdown、原始长文备份与推送状态；`userId+year+weekNumber` 唯一。 |
 | **`QuickLink`** | 快捷链接表 | 存储首页快捷导航的标题、URL 地址与排序权重。 |
 | **`SystemConfig`** | 系统参数配置表 | 以 Key-Value 形式存储系统公告、全局功能开关等系统级配置项。 |
 

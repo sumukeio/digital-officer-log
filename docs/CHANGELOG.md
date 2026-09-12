@@ -3,6 +3,69 @@
 > **权威性声明**：本文档遵循 Keep a Changelog 格式规范，**只追加、不覆盖**。
 > **维护规则**：每次完成 Phase 任务或重要工程/业务交付时，在此以标准格式追加最新记录。
 
+## [2026-09-12] - 修复 QC 并列收益 bullet 规则提炼为空
+
+### 缺陷修复
+- **根因**：`extractBenefits` 仅识别「生产/质量/管理收益」小标题；QC 长文为四条并列 bullet，导致三类收益全空。
+- **修复**：无小标题时按语义归类并顺序兜底填入 `production/quality/management`；补充对应 Jest 用例。
+
+---
+
+## [2026-09-12] - 海报 A1/B1/C2：测宽折行、单模块单图动态增高、分模块导出
+
+### 功能增强
+- **A1 换行**：`wrapTextByWidth` 按像素测宽 + 软边距，优先在标点处断开；去掉标题前导序号，修复 `1. 1.`。
+- **B1 单页**：单模块永远一张图，画布高度随内容动态增高（宽 1240）。
+- **C2 分模块**：下载全部模块各一张；复制仅当前选中模块。
+
+### 测试
+- 补充测宽折行、去序号、单页高度单测；headline-brief 相关用例全绿。
+
+---
+
+## [2026-09-12] - 头条周简报体验增强：最终稿可编 / 海报复制 / 海报 v2
+
+### 功能增强
+- **最终稿优先（方案 A）**（`headline-brief-client.tsx`）：右侧可编辑 Markdown 源码，仅影响推送/复制/保存，不回写左侧结构；支持「重置为结构稿」与渲染预览切换。
+- **海报复制**（`PosterExport.tsx`）：支持将 PNG 写入剪贴板；不支持或失败时自动回退下载。
+- **海报 v2**（`src/lib/headline-brief/poster.ts`）：1080×1920 结构化绘制——顶栏层级、章节胶囊、问题卡片+证据芯片、改善列表、收益三格、底部安全区；生产/QC 分色主题。
+
+### 测试
+- 补充芯片压缩与主题色单测；headline-brief 相关套件全绿。
+
+---
+
+## [2026-09-12] - 头条周简报全栈落地 (`phase-headline-brief-20260912` / task015–task020)
+
+### 新增功能
+- **独立模块「头条周简报」**（路由 `/headline-brief`）：与海铭德指标周报互补，聚焦「问题—改善—收益」领导群可读精简汇报。
+- **规则提炼引擎**（`src/lib/headline-brief/`）：解析 DeepSeek 长文为结构化草稿，硬约束问题≤3 / 改善≤4 / 收益三类各 1 句 / Markdown 建议≤1200 字。
+- **工作台闭环**：粘贴 → 提炼 → 结构化编辑 → 企微 Markdown 预览/复制/合并或分模块推送 → 按周存档（`HeadlineBrief`）。
+- **一页竖版海报 PNG**：Canvas 同数据源导出下载，兼容发群发图习惯。
+- **指标联动**：可从当周 `WeeklyReport.metrics` 自动生成问题结论骨架。
+- **导航入口**：Dashboard 顶栏与欢迎区新增「头条周简报」快捷入口。
+
+### 数据模型
+- Prisma 新增 `HeadlineBrief`（`userId + year + weekNumber` 唯一），关联 `User.headlineBriefs`。
+
+### 测试与构建
+- 新增 Jest：核心库 / Actions / StructuredEditor 组件套件。
+- 需在可达数据库环境执行 `npx prisma db push`（或 migrate）以创建物理表。
+
+### 文档
+- 更新 `docs/guide/project-modules-and-features.md`、`docs/README.md`、`.phrase` 阶段文档与本 CHANGELOG。
+
+---
+
+## [2026-09-12] - 开启头条周简报阶段 (`phase-headline-brief-20260912` / `task015`)
+
+### 文档与阶段门禁
+- **新增阶段**：`phase-headline-brief-20260912`，目标为「问题—改善—收益」精简汇报（粘贴提炼、企微短文、海报、指标联动）。
+- **阶段文档**：`spec_headline_brief.md` / `plan_headline_brief.md` / `task_headline_brief.md` / `change_headline_brief.md`。
+- **索引更新**：`.phrase/docs/CHANGE.md` 切换当前进行阶段；需求输入见 `docs/rcfs/新需求.md`。
+
+---
+
 ## [2026-09-06] - 企微周报 Markdown 模板内容补全与模块勾选过滤联动优化
 
 ### 功能增强与缺陷修复

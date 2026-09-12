@@ -13,7 +13,7 @@ import {
   LogOut, PlusCircle, KeyRound, Loader2, Bot,
   Settings2, BarChart3, User, MapPin, BadgeCheck,
   UserCircle, LayoutTemplate, BookOpen, ExternalLink,
-  ClipboardList, Bell, History, FileSpreadsheet, Clock
+  ClipboardList, Bell, History, FileSpreadsheet, Clock, Newspaper
 } from "lucide-react";
 import { UpdateAnnouncementDialog } from "@/components/UpdateAnnouncement";
 import { logout, changePassword } from "@/app/actions/auth";
@@ -155,6 +155,9 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
            <Button variant="ghost" size="sm" onClick={() => router.push('/weekly-summary')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 ml-1">
              <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> <span className="font-medium">周报生成</span>
            </Button>
+           <Button variant="ghost" size="sm" onClick={() => router.push('/headline-brief')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-sky-600 hover:bg-sky-50 ml-1">
+             <Newspaper className="w-4 h-4 text-sky-600" /> <span className="font-medium">头条周简报</span>
+           </Button>
            <Button variant="ghost" size="sm" onClick={() => router.push('/shifts')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-amber-600 hover:bg-amber-50 ml-1">
              <Clock className="w-4 h-4 text-amber-600" /> <span className="font-medium">转班提醒</span>
            </Button>
@@ -166,6 +169,7 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
             {/* 移动端/管理员按钮等 */}
             <Button variant="ghost" size="icon" onClick={() => router.push('/tasks')} className="sm:hidden text-slate-600" title="任务看板"><ClipboardList className="w-5 h-5" /></Button>
             <Button variant="ghost" size="icon" onClick={() => router.push('/weekly-summary')} className="sm:hidden text-slate-600" title="周报生成"><FileSpreadsheet className="w-5 h-5 text-emerald-600" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => router.push('/headline-brief')} className="sm:hidden text-slate-600" title="头条周简报"><Newspaper className="w-5 h-5 text-sky-600" /></Button>
             <Button variant="ghost" size="icon" onClick={() => router.push('/shifts')} className="sm:hidden text-slate-600" title="转班提醒"><Clock className="w-5 h-5 text-amber-600" /></Button>
             <Button variant="ghost" size="icon" onClick={() => router.push('/badge')} className="sm:hidden text-slate-600" title="工牌生成"><BadgeCheck className="w-5 h-5 text-blue-600" /></Button>
             <Button variant="ghost" size="icon" onClick={() => router.push('/knowledge')} className="sm:hidden text-slate-600"><BookOpen className="w-5 h-5" /></Button>
@@ -193,6 +197,9 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
            <div className="flex gap-2 w-full sm:w-auto">
              <Button variant="outline" onClick={() => router.push("/weekly-summary")} className="h-12 px-5 text-sm border-blue-200 text-blue-700 bg-blue-50/70 hover:bg-blue-100 flex-1 sm:flex-initial">
                <FileSpreadsheet className="w-4 h-4 mr-1.5 text-emerald-600" /> 自动总结周报
+             </Button>
+             <Button variant="outline" onClick={() => router.push("/headline-brief")} className="h-12 px-5 text-sm border-sky-200 text-sky-700 bg-sky-50/70 hover:bg-sky-100 flex-1 sm:flex-initial">
+               <Newspaper className="w-4 h-4 mr-1.5 text-sky-600" /> 头条周简报
              </Button>
              <Button onClick={() => router.push("/report/new")} className="h-12 px-6 text-base shadow-lg shadow-blue-200 flex-1 sm:flex-initial">
                <PlusCircle className="w-5 h-5 mr-2" /> 新建今日日报
