@@ -30,6 +30,8 @@
 
 ## 📝 最近任务变更概览 (Recent Tasks)
 
+- **2026-09-15**：文档迁移 — `docs/rcfs/问题与解决.md` 全文并入 `.phrase/docs/ISSUES.md`（issue002–issue006 索引），原文件已删。
+- **2026-09-15** `[task021]`：工牌对齐参考工具（issue001）— 标准 QR+Logo、空列表、去载入数字官、PDF 导出（`phase-tools-integration-20260901`）。
 - **2026-09-12** `[task015–task020]`：头条周简报全栈落地（Schema、规则提炼、Actions、工作台、海报、指标联动、文档闭环）。
 - **2026-09-12** `[task015]`：初始化 `phase-headline-brief-20260912` 阶段文档集并更新项目研发总索引。
 - **2026-09-01** `[task014]`：集成工作台主页导航与快捷入口，加固生产构建（`npm run build`）与全量单测（`npm test`），完成 Phase 闭环验收。

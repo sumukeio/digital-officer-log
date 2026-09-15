@@ -8,6 +8,22 @@
 
 ## 变更回溯记录
 
+### [2026-09-15] task021: 工牌对齐参考工具（issue001）— PDF 导出 / QR Logo / UX
+
+- **变更摘要**：
+  - 布局默认值对齐参考 `layout_config.json`（`photo_w=250`、`text_value_x=253`）；
+  - 标准 `qrcode` + 中心 Logo；Canvas 渲染单卡 + `pdf-lib` 导出 A4 3×3 `工牌.pdf`（页边距居中、裁切延长线）；
+  - 列表初始为空；移除「载入数字官」与浏览器 `window.print` 正式交付路径。
+- **关联文件**：
+  - `[NEW]` `src/lib/badge/pdf-layout.ts` / `create-qr.ts` / `render-badge-canvas.ts` / `export-pdf.ts`
+  - `[MODIFY]` `src/lib/badge/types.ts`、`src/components/badge/*`、`src/app/badge/*`
+  - `[NEW]` `src/__tests__/lib/badge-pdf-layout.test.ts`
+  - `[MODIFY]` `src/__tests__/components/BadgePage.test.tsx`
+  - `[MODIFY]` `.phrase/docs/ISSUES.md`、`docs/CHANGELOG.md`、`docs/guide/project-modules-and-features.md`
+- **验证结论**：
+  - `npm test -- --testPathPattern=badge` 3 套件 16 用例通过；
+  - `npm test` 全量通过；成品打印效果待人类用 WPS 对照参考工具确认。
+
 ### [2026-09-01] task014: 全局导航入口集成、生产环境全量构建与 Phase 闭环
 
 - **变更摘要**：

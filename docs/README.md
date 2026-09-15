@@ -14,10 +14,11 @@
 | **Cursor 规则库** | [.cursor/rules/](file:///d:/j/OpenProject/Nextproject/digital-officer-log/.cursor/rules/) | Cursor 兼容规则库 (.mdc 规范文件) |
 | **项目生命周期与任务推进** | [.phrase/docs/README.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/.phrase/docs/README.md) | `.phrase/` 阶段精细化研发管理体系说明 |
 | **变更总索引与当前阶段** | [.phrase/docs/CHANGE.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/.phrase/docs/CHANGE.md) | 维护当前进行中阶段链接与阶段回溯索引 |
-| **缺陷与问题追踪** | [.phrase/docs/ISSUES.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/.phrase/docs/ISSUES.md) | 缺陷与 Issue 登记追踪台账 |
+| **缺陷与问题追踪** | [.phrase/docs/ISSUES.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/.phrase/docs/ISSUES.md) | 缺陷与 Issue 登记追踪台账（含原 `docs/rcfs/问题与解决.md` 全文迁移） |
 | **仓库全量变更日志** | [docs/CHANGELOG.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/CHANGELOG.md) | 规范的 Keep a Changelog 格式历史日志 (只追加不覆盖) |
 | **系统模块与功能全景** | [docs/guide/project-modules-and-features.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/project-modules-and-features.md) | 全量业务模块、功能清单与系统技术架构的全景参考 |
 | **头条周简报需求草稿** | [docs/rcfs/新需求.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/rcfs/新需求.md) | 「问题—改善—收益」精简汇报原始需求与样例长文 |
+| **头条周简报排错笔记** | [.phrase/docs/ISSUES.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/.phrase/docs/ISSUES.md)（全文迁移章节） | 原 `docs/rcfs/问题与解决.md` 已并入 ISSUES（issue002–issue006） |
 | **自动化测试指引** | [docs/guide/testing-guide.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/testing-guide.md) | Jest + RTL 测试运行、编写规范与单测用例说明 |
 | **宝塔面板内网部署指南** | [docs/guide/bt-panel-deployment-guide.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/bt-panel-deployment-guide.md) | Linux 内网服务器 + 宝塔面板环境部署、Nginx 反代与日常运维全流程 |
 | **部署失败排错指南** | [docs/guide/deployment-troubleshooting.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/deployment-troubleshooting.md) | 类型错误、缺失参数、环境变量等部署常见故障排除 |

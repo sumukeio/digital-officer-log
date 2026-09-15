@@ -90,6 +90,19 @@
     - `npm run build` 全部 19 个页面生成成功，0 错误 0 警告。
   - **状态**：已完成 (Pass)
 
+- [x] **`task021`**: 工牌对齐参考工具（issue001）— 标准 QR+Logo、空列表、去载入数字官、PDF 导出
+  - **任务描述**：修复 `/badge` 与参考 Python 工牌生成器不一致问题：布局坐标对齐 `layout_config.json`；标准 QR 中心嵌 Logo；列表初始为空；去掉「载入数字官」；正式交付改为 Canvas→`pdf-lib` 导出 A4 3×3 `工牌.pdf`（供 WPS 打印）。
+  - **产出清单**：
+    - `[NEW]` `src/lib/badge/pdf-layout.ts` / `create-qr.ts` / `render-badge-canvas.ts` / `export-pdf.ts`
+    - `[MODIFY]` `src/lib/badge/types.ts`、`QRCodeSVG.tsx`、`BadgeCard.tsx`、`A4PrintSheet.tsx`、`badge-client.tsx`、`page.tsx`
+    - `[NEW]` `src/__tests__/lib/badge-pdf-layout.test.ts`
+    - `[MODIFY]` `src/__tests__/components/BadgePage.test.tsx`
+    - `[MODIFY]` `.phrase/docs/ISSUES.md`、`docs/CHANGELOG.md`、`docs/guide/project-modules-and-features.md`
+  - **验证方案**：
+    - `npm test -- --testPathPattern=badge` 全绿；
+    - 手动：录入工牌 → 导出 PDF → WPS 打开打印，对照参考工具成品。
+  - **状态**：已完成 (Pass，人类已确认成品 OK)
+
 ---
 
 ## Task 闭环检查表 (每次任务执行)
