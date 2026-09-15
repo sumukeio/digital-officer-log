@@ -80,8 +80,8 @@ export async function exportBadgesPdf(
   }
 
   const pdfBytes = await pdf.save();
-  // pdf-lib 返回 Uint8Array；直接交给 Blob
-  return new Blob([pdfBytes], { type: 'application/pdf' });
+  // pdf-lib 返回的 Uint8Array 在 TS 5 下不满足 BlobPart，拷贝一份即可
+  return new Blob([Uint8Array.from(pdfBytes)], { type: 'application/pdf' });
 }
 
 /** 触发浏览器下载 PDF */

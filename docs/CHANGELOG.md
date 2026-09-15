@@ -3,6 +3,23 @@
 > **权威性声明**：本文档遵循 Keep a Changelog 格式规范，**只追加、不覆盖**。
 > **维护规则**：每次完成 Phase 任务或重要工程/业务交付时，在此以标准格式追加最新记录。
 
+## [2026-09-15] - fix: 工牌 PDF 导出 Blob 类型导致 `npm run build` 失败（issue007 续）
+
+### 缺陷修复
+- **根因**：`export-pdf.ts` 将 pdf-lib 的 `Uint8Array` 直接传入 `Blob`，TS 5 严格模式下不满足 `BlobPart`。
+- **修复**：改为 `new Blob([Uint8Array.from(pdfBytes)], …)`；本地 `npm run build` 已通过。
+- **部署**：必须先 build 成功再 pm2 start；服务器需 `git pull` 后重跑 `npm run build`。
+
+---
+
+## [2026-09-15] - issue007 复盘：BUILD_ID 缺失仍 pm2 start
+
+### 运维
+- 二次日志确认：`ls .next/BUILD_ID` 失败后仍启动 PM2；出现同名双进程（id 3/4）；服务器 `start:bt` 仍为旧版无门禁。
+- ISSUES `issue007` 追加完整终端输出与「先 delete → pull → build → 再 start」强制顺序。
+
+---
+
 ## [2026-09-15] - issue007：PM2 无生产构建启动失败
 
 ### 缺陷修复 / 运维

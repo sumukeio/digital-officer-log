@@ -775,3 +775,137 @@ pm2 restart digital-officer-log
 ### 附：与 `output: "standalone"` 的关系
 
 本仓库 `next.config.ts` 开启了 `output: "standalone"`。在**项目根目录**完整 `npm run build` 后，用 `next start` / `start:bt` 仍然可行（依赖根目录完整 `.next`）。若将来改为只拷贝 `.next/standalone` 目录部署，则应改用 `node server.js` 那套 standalone 启动方式，并同步拷贝 `static` / `public`——**当前宝塔 PM2 方案仍以项目根 + `npm run build` + `start:bt` 为准**。
+
+
+
+
+
+root@wdf-Standard-PC-i440FX-PIIX-1996:/www/wwwroot/digital-officer-log# ls .next/BUILD_ID
+PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
+ls: 无法访问 '.next/BUILD_ID': 没有那个文件或目录
+
+>>>> In-memory PM2 is out-of-date, do:
+>>>> $ pm2 update
+In memory PM2 version: 7.0.3
+Local PM2 version: 7.0.4
+
+[PM2] Starting /www/server/nvm/versions/node/v20.20.2/bin/npm in fork_mode (1 instance)
+[PM2] Done.
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 3  │ digital-officer-l… │ fork     │ 16   │ stopped   │ 0%       │ 0b       │
+│ 4  │ digital-officer-l… │ fork     │ 0    │ online    │ 0%       │ 17.5mb   │
+│ 0  │ material-library   │ fork     │ 2    │ online    │ 0%       │ 81.8mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+host metrics | cpu: 1.6% | ram usage: 19.6% | ens3: ⇓ 0.03mb/s ⇑ 0mb/s drop 50/min
+root@wdf-Standard-PC-i440FX-PIIX-1996:/www/wwwroot/digital-officer-log# pm2 status
+
+>>>> In-memory PM2 is out-of-date, do:
+>>>> $ pm2 update
+In memory PM2 version: 7.0.3
+Local PM2 version: 7.0.4
+
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 3  │ digital-officer-l… │ fork     │ 16   │ stopped   │ 0%       │ 0b       │
+│ 4  │ digital-officer-l… │ fork     │ 15   │ errored   │ 0%       │ 0b       │
+│ 0  │ material-library   │ fork     │ 2    │ online    │ 0%       │ 81.8mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+host metrics | cpu: 1.6% | ram usage: 19.6% | ens3: ⇓ 0.03mb/s ⇑ 0mb/s drop 50/min
+root@wdf-Standard-PC-i440FX-PIIX-1996:/www/wwwroot/digital-officer-log# pm2 logs digital-officer-log
+
+>>>> In-memory PM2 is out-of-date, do:
+>>>> $ pm2 update
+In memory PM2 version: 7.0.3
+Local PM2 version: 7.0.4
+
+[TAILING] Tailing last 15 lines for [digital-officer-log] process (change the value with --lines option)
+/root/.pm2/logs/digital-officer-log-out.log last 15 lines:
+3|digital- | 
+3|digital- |    ▲ Next.js 16.0.8
+3|digital- |    - Local:         http://localhost:3002
+3|digital- |    - Network:       http://10.10.10.230:3002
+3|digital- | 
+3|digital- |  ✓ Starting...
+3|digital- | 
+3|digital- | > digital-officer-log@0.1.0 start:bt
+3|digital- | > next start -p 3002
+3|digital- | 
+3|digital- |    ▲ Next.js 16.0.8
+3|digital- |    - Local:         http://localhost:3002
+3|digital- |    - Network:       http://10.10.10.230:3002
+3|digital- | 
+3|digital- |  ✓ Starting...
+
+/root/.pm2/logs/digital-officer-log-error.log last 15 lines:
+3|digital- | [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+3|digital- | Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+3|digital- |     at ignore-listed frames
+3|digital- | [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+3|digital- | Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+3|digital- |     at ignore-listed frames
+3|digital- | [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+3|digital- | Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+3|digital- |     at ignore-listed frames
+3|digital- | [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+3|digital- | Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+3|digital- |     at ignore-listed frames
+3|digital- | [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+3|digital- | Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+3|digital- |     at ignore-listed frames
+
+
+
+
+### 三次追加（2026-09-15 · `npm run build` TypeScript 失败）
+
+#### 现象（原始日志）
+
+```text
+执行到npm run build时报错：
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ✓ Compiled successfully in 9.3s
+   Running TypeScript  .Failed to compile.
+
+./src/lib/badge/export-pdf.ts:84:20
+Type error: Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'BlobPart'.
+  ...
+> 84 |   return new Blob([pdfBytes], { type: 'application/pdf' });
+Next.js build worker exited with code: 1 and signal: null
+
+继续下一步还是先解决报错？
+```
+
+#### 结论：**必须先解决报错，不能继续 pm2 start**
+
+`next build` 在 TypeScript 阶段失败 → **不会生成** `.next/BUILD_ID` → 后面 pm2 必然还是 `production-start-no-build-id`。`baseline-browser-mapping` 警告可忽略。
+
+#### 根因
+
+工牌 PDF 导出（task021）里 `pdf-lib` 的 `pdf.save()` 返回 `Uint8Array`，在 **TS 5 严格模式 + Next 生产构建** 下不能直接作为 `Blob` 构造参数（`BlobPart` 类型不兼容）。
+
+#### 修复（已合入代码）
+
+`src/lib/badge/export-pdf.ts`：
+
+```typescript
+const pdfBytes = await pdf.save();
+return new Blob([Uint8Array.from(pdfBytes)], { type: 'application/pdf' });
+```
+
+本地验证：`npm run build` 已通过。
+
+#### 服务器下一步
+
+```bash
+cd /www/wwwroot/digital-officer-log
+git pull
+npm install
+npm run build
+test -f .next/BUILD_ID && cat .next/BUILD_ID
+pm2 delete digital-officer-log
+PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
+pm2 save
+```
