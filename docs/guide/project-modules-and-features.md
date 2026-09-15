@@ -1,7 +1,7 @@
 # 数字官工作台 — 系统模块与功能全景梳理
 
 > **状态**：[权威/现行]  
-> **更新时间**：2026-09-12  
+> **更新时间**：2026-09-15  
 > **文档定位**：全量业务模块、功能清单与系统技术架构的全景参考文档。
 
 ---
@@ -112,7 +112,21 @@ graph TD
 
 ---
 
-### 6b. 头条周简报（问题—改善—收益）(Headline Brief)
+### 6b. QC 头条按车间统计 (QC Workshop)
+- **路由路径**：`/qc-workshop`
+- **需求文档**：[docs/rcfs/RFC002.md](../rcfs/RFC002.md)
+- **核心逻辑**：`src/lib/qc-workshop/`、`src/app/qc-workshop/`
+- **主要功能**：
+  1. **机台归属**：导入「机台映射表.xlsx」+ RFC002 别名（T001→二部、喷绘→七部、装箱/吸塑无前缀→九部）。
+  2. **数据入口**：优先读取「周报生成」页当周已上传的 QC 行（浏览器 localStorage 缓存，仅「周」模式）；可本页直接上传 QC Excel。
+  3. **周期三模式**：左上角切换「周 | 月 | 自定义」；月含「整月 / 月初至今」；**整表当区间**（不按开卡时间裁剪）。
+  4. **统计预览**：全厂/分车间条数、TOP 问题、未归类清单。
+  5. **导出**：分析 Excel（全厂概览 + 有数据车间各 Sheet）、纯文本摘要、复制全厂/分车间海铭德 AI Prompt。
+  6. **MVP 边界**：不自动调 LLM；不强制接入 headline-brief 海报（第二版联动）。
+
+---
+
+### 6c. 头条周简报（问题—改善—收益）(Headline Brief)
 - **路由路径**：`/headline-brief`
 - **核心逻辑**：`src/lib/headline-brief/`、`src/app/actions/headline-brief.ts`、`src/components/headline-brief/`
 - **主要功能**：

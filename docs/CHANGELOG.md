@@ -3,6 +3,81 @@
 > **权威性声明**：本文档遵循 Keep a Changelog 格式规范，**只追加、不覆盖**。
 > **维护规则**：每次完成 Phase 任务或重要工程/业务交付时，在此以标准格式追加最新记录。
 
+## [2026-09-15] - task027：QC 周期三模式（周/月/自定义）
+
+### 新增
+- `/qc-workshop` 左上角：周 | 月 | 自定义；月含「整月 / 月初至今」。
+- `period.ts` + 按 `storageKey` 分桶缓存；整表当区间（不按开卡时间裁剪）。
+
+### 变更
+- RFC002 §6 补充周期三模式决策；周报联动仅在「周」模式。
+
+### 验证
+- `npm test -- --testPathPattern=qc-workshop` 42 用例通过。
+
+---
+
+## [2026-09-15] - task026：QC 车间统计 UI（/qc-workshop）
+
+### 新增
+- 路由 `/qc-workshop`：上传 QC / 机台映射表、统计预览、下载分析 Excel 与纯文本、复制 Prompt。
+- `browser-storage`：localStorage 缓存；`weekly-summary` 上传 QC 时自动写入当周缓存。
+
+### 变更
+- 工作台顶栏新增「QC车间统计」入口；`docs/guide/project-modules-and-features.md` §6b。
+
+### 验证
+- `npm test` 170 通过；`npx next build` 含 `/qc-workshop` 路由编译通过。
+
+---
+
+## [2026-09-15] - task025：QC 导出 xlsx / txt / Prompt
+
+### 新增
+- `buildQcWorkshopXlsx`：分析 Excel（全厂概览、有数据车间 Sheet、未归类）；无 0 条空 Sheet。
+- `buildQcWorkshopTxt`：单文件纯文本（7 标准部门有数据分章节；不含 Prompt）。
+- `buildQcWorkshopPrompt`：全厂/分车间海铭德 AI 指令（硬约束同 headline-brief）。
+- Jest：`qc-workshop-export.test.ts`（qc-workshop 合计 34 用例绿）。
+
+### 下一任务
+- `task026`：UI 入口、上传/读当周 QC、下载/复制、文档闭环（待确认后执行）。
+
+---
+
+## [2026-09-15] - task024：QC 车间聚合器
+
+### 新增
+- `aggregateQcByWorkshop` / `listStandardWorkshopsWithData`：全厂与分车间 TOP、未归类分离。
+- Jest：`qc-workshop-aggregator.test.ts`（与 resolve 合计 22 用例绿）。
+
+### 下一任务
+- `task025`：导出 xlsx + txt + Prompt 生成（待确认后执行）。
+
+---
+
+## [2026-09-15] - task023：QC 机台映射归属引擎
+
+### 新增
+- `src/lib/qc-workshop/`：机台映射表解析、后缀匹配、RFC002 别名（T001→二部、喷绘→七部、装箱/吸塑无前缀→九部）、`resolveWorkshop`。
+- Jest：`qc-workshop-resolve.test.ts`（13 用例；样例覆盖率 ≥95%）。
+
+### 下一任务
+- `task024`：QC 车间聚合器（待确认后执行）。
+
+---
+
+## [2026-09-15] - RFC002 锁定 + 开启 phase-qc-workshop（task022）
+
+### 文档
+- `docs/rcfs/RFC002.md`：写入已锁定 MVP 决策（7 车间、别名、xlsx/txt/Prompt、Non-goals）；原文讨论保留。
+- 新建 `.phrase/phases/phase-qc-workshop-20260915/`（spec/plan/task/change）。
+- 切换 `.phrase/docs/CHANGE.md` 当前阶段；`docs/README.md` 增加 RFC002 路由。
+
+### 下一原子任务
+- `task023`：机台映射解析与归属匹配（待人类下令执行）。
+
+---
+
 ## [2026-09-15] - fix: 工牌 PDF 导出 Blob 类型导致 `npm run build` 失败（issue007 续）
 
 ### 缺陷修复

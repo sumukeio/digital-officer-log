@@ -45,6 +45,8 @@ import {
   getLastWeekMetrics,
   getWeeklyReportByPeriod,
 } from "@/app/actions/weekly-report";
+import { saveQcRowsForWeek } from "@/lib/qc-workshop/browser-storage";
+import { QcRawRow } from "@/lib/qc-workshop";
 import {
   Dialog,
   DialogContent,
@@ -169,6 +171,13 @@ export default function WeeklySummaryClient({
   const handleAddFiles = (newFiles: RecognizedFile[]) => {
     setFiles((prev) => [...prev, ...newFiles]);
   };
+
+  // 同步 QC 原始行到 localStorage，供 /qc-workshop 读取（RFC002 优先复用周报同源数据）
+  useEffect(() => {
+    const qcFile = files.find((f) => f.moduleType === "qc" && f.rows.length > 0);
+    if (!qcFile) return;
+    saveQcRowsForWeek(dateRange, qcFile.rows as QcRawRow[], qcFile.fileName);
+  }, [files, dateRange]);
 
   // 移除文件
   const handleRemoveFile = (fileId: string) => {
