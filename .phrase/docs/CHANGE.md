@@ -30,6 +30,7 @@
 
 ## 📝 最近任务变更概览 (Recent Tasks)
 
+- **2026-09-15** `issue007`：PM2 `start:bt` 无 `.next` 生产构建 — 文档落盘 + `ensure-production-build` 启动门禁。
 - **2026-09-15**：文档迁移 — `docs/rcfs/问题与解决.md` 全文并入 `.phrase/docs/ISSUES.md`（issue002–issue006 索引），原文件已删。
 - **2026-09-15** `[task021]`：工牌对齐参考工具（issue001）— 标准 QR+Logo、空列表、去载入数字官、PDF 导出（`phase-tools-integration-20260901`）。
 - **2026-09-12** `[task015–task020]`：头条周简报全栈落地（Schema、规则提炼、Actions、工作台、海报、指标联动、文档闭环）。

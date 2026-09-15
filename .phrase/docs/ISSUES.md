@@ -16,6 +16,7 @@
 | [issue004](#issue004-海报换行过早--单图--多模块导出) | 2026-09-12 | P2 | 海报过早换行/双编号；需单模块单图动态增高；多模块分张导出 | `phase-headline-brief-20260912` | [x] 已解决（A1+B1+C2） | 2026-09-12 |
 | [issue005](#issue005-qc-规则提炼后收益为空) | 2026-09-12 | P1 | QC 样例无三类收益小标题导致 extractBenefits 全空 | `phase-headline-brief-20260912` | [x] 已解决 | 2026-09-12 |
 | [issue006](#issue006-服务器落到-3003--systemconfig-刷屏) | 2026-09-12 | P1 | 端口落到 3003（误用 dev/未用 3002）；SystemConfig 轮询属正常 cron | 部署/运维 | [x] 已解决 | 2026-09-12 |
+| [issue007](#issue007-pm2-startbt-无生产构建--nextbuild) | 2026-09-15 | P1 | PM2 `start:bt` 报错找不到 `.next` 生产构建（production-start-no-build-id） | 部署/运维 | [x] 已解决（文档+启动门禁） | 2026-09-15 |
 
 ---
 
@@ -662,3 +663,115 @@ pm2 logs digital-officer-log --lines 30
 - **关联任务**：`task021`（`phase-tools-integration-20260901`）
 - **用户确认**：2026-09-15 人类确认成品 OK（WPS 打印效果对齐参考工具）
 - **Resolved At/By**：2026-09-15 / 人类确认
+
+---
+
+<a id="issue007-pm2-startbt-无生产构建--nextbuild"></a>
+
+## [issue007] PM2 `start:bt`：Could not find a production build in `.next`
+
+- **发现时间**：2026-09-15
+- **严重等级**：P1(严重)
+- **环境**：服务器 `10.10.10.230`，PM2 进程 `digital-officer-log`，脚本 `npm run start:bt`（`next start -p 3002`）
+- **状态**：[x] 已解决（运维步骤 + 启动门禁脚本）
+
+### 现象（原始日志）
+
+```text
+pm2部署时报错：
+[TAILING] Tailing last 15 lines for [digital-officer-log] process (change the value with --lines option)
+/root/.pm2/logs/digital-officer-log-out.log last 15 lines:
+3|digital- | 
+3|digital- |    ▲ Next.js 16.0.8
+3|digital- |    - Local:         http://localhost:3002
+3|digital- |    - Network:       http://10.10.10.230:3002
+3|digital- | 
+3|digital- |  ✓ Starting...
+3|digital- | 
+3|digital- | > digital-officer-log@0.1.0 start:bt
+3|digital- | > next start -p 3002
+3|digital- | 
+3|digital- |    ▲ Next.js 16.0.8
+3|digital- |    - Local:         http://localhost:3002
+3|digital- |    - Network:       http://10.10.10.230:3002
+3|digital- | 
+3|digital- |  ✓ Starting...
+
+/root/.pm2/logs/digital-officer-log-error.log last 15 lines:
+3|digital- | [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+3|digital- | Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+3|digital- |     at ignore-listed frames
+3|digital- | [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+3|digital- | Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+3|digital- |     at ignore-listed frames
+3|digital- | [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+3|digital- | Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+3|digital- |     at ignore-listed frames
+3|digital- | [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+3|digital- | Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+3|digital- |     at ignore-listed frames
+3|digital- | [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+3|digital- | Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+3|digital- |     at ignore-listed frames
+```
+
+> 说明：out 日志里出现「✓ Starting…」只是进程被拉起后的打印；error 日志才是失败真相。PM2 会反复重启，所以同一错误刷多遍。`baseline-browser-mapping` 过期警告可忽略，与本次无关。
+
+### 根本原因
+
+**在未生成（或不完整）生产构建的情况下执行了 `next start`。**
+
+- `npm run start:bt` = `next start -p 3002`，只启动生产服务器，**不会**自动编译。
+- 生产服务器依赖项目根目录下的 `.next/`（至少要有 `.next/BUILD_ID`）。
+- 常见触发：只 `git pull` / `pm2 restart` 却没跑 `npm run build`；构建失败被忽略；`.next` 被清掉；PM2 `cwd` 不在项目根导致找不到 `.next`。
+
+这与业务代码无关，是**部署顺序错误**。
+
+### 解决方案（服务器上立刻执行）
+
+```bash
+cd /www/wwwroot/digital-officer-log
+
+# 1）停掉反复重启的进程（可选但推荐）
+pm2 stop digital-officer-log
+
+# 2）必须先生产构建（成功才继续）
+npm install
+npx prisma generate
+npx prisma db push
+npm run build
+
+# 3）验收构建产物存在
+ls -la .next/BUILD_ID
+# 应能读到一串 build id
+
+# 4）再启动 / 重启
+pm2 delete digital-officer-log   # 若旧进程定义混乱可先删
+PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
+pm2 save
+pm2 logs digital-officer-log --lines 30
+```
+
+**验收**：error 日志不再出现 `production-start-no-build-id`；浏览器可访问 `http://10.10.10.230:3002`。
+
+### 日常更新顺序（防再犯）
+
+```bash
+cd /www/wwwroot/digital-officer-log
+git pull
+npm install
+npx prisma generate
+npx prisma db push
+npm run build          # ← 不可跳过
+pm2 restart digital-officer-log
+```
+
+### 工程防退化（已落盘）
+
+- `scripts/ensure-production-build.js`：启动前检查 `.next/BUILD_ID`，缺失则中文报错退出。
+- `package.json` 的 `start:bt` 改为先跑该门禁再 `next start -p 3002`。
+- 部署指南已强调「先 build 再 start」。
+
+### 附：与 `output: "standalone"` 的关系
+
+本仓库 `next.config.ts` 开启了 `output: "standalone"`。在**项目根目录**完整 `npm run build` 后，用 `next start` / `start:bt` 仍然可行（依赖根目录完整 `.next`）。若将来改为只拷贝 `.next/standalone` 目录部署，则应改用 `node server.js` 那套 standalone 启动方式，并同步拷贝 `static` / `public`——**当前宝塔 PM2 方案仍以项目根 + `npm run build` + `start:bt` 为准**。

@@ -3,6 +3,15 @@
 > **权威性声明**：本文档遵循 Keep a Changelog 格式规范，**只追加、不覆盖**。
 > **维护规则**：每次完成 Phase 任务或重要工程/业务交付时，在此以标准格式追加最新记录。
 
+## [2026-09-15] - issue007：PM2 无生产构建启动失败
+
+### 缺陷修复 / 运维
+- **根因**：`start:bt`（`next start`）在缺少 `.next/BUILD_ID` 时启动，PM2 反复报 `production-start-no-build-id`。
+- **处置**：服务器须先 `npm run build` 再 PM2 启动；ISSUES 登记 `issue007` 完整日志与步骤。
+- **防退化**：新增 `scripts/ensure-production-build.js`，`start:bt` 启动前门禁；同步 `bt-panel-deployment-guide.md` 与 `deployment-troubleshooting.md`。
+
+---
+
 ## [2026-09-15] - 文档：`问题与解决.md` 全文迁移入 ISSUES
 
 ### 文档

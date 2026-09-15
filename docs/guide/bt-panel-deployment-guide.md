@@ -115,13 +115,19 @@ npm run build
 
 ### 推荐：使用 PM2 守护进程（基于 3002 端口）
 
+> ⚠️ **硬性前置**：必须先完成第五节的 `npm run build`，并确认存在 `.next/BUILD_ID`。  
+> 只跑 `pm2 start` / `start:bt` **不会**自动编译；缺少构建会报 `Could not find a production build in the '.next' directory`（见 ISSUES `issue007`）。
+
 在终端中执行：
 
 ```bash
 cd /www/wwwroot/digital-officer-log
 
-# 使用 PM2 启动服务（指定 3002 端口）
-PORT=3002 pm2 start npm --name "digital-officer-log" -- run start -- -p 3002
+# 门禁：确认生产构建已存在
+ls -la .next/BUILD_ID
+
+# 使用 PM2 + start:bt（固定 3002；启动前会检查 BUILD_ID）
+PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
 
 # 保存 PM2 进程列表以实现开机自启
 pm2 save
@@ -131,7 +137,7 @@ pm2 startup
 > **查看状态与日志**：
 > - 查看运行状态：`pm2 status`
 > - 查看实时日志：`pm2 logs digital-officer-log`
-> - 重启服务：`pm2 restart digital-officer-log`
+> - 重启服务：`pm2 restart digital-officer-log`（改代码后仍须先 `npm run build`）
 
 ---
 
@@ -143,10 +149,11 @@ pm2 startup
    - **项目目录**：`/www/wwwroot/digital-officer-log`
    - **Node 版本**：选择已安装的 `v20.20.2`
    - **包管理器**：`npm`
-   - **启动命令**：`run start -- -p 3002`
+   - **启动命令**：`run start:bt`
    - **项目端口**：`3002`
    - **开机自启**：勾选 ✅
 3. 点击 **「确定」** 启动。
+4. 若报找不到 `.next` 生产构建：回到第五节执行 `npm run build` 后再启动（见 ISSUES `issue007`）。
 
 ---
 

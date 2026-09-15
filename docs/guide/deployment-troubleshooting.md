@@ -443,6 +443,7 @@ interface User {
 部署前请确认：
 
 - [ ] `npm run build` 成功
+- [ ] 存在 `.next/BUILD_ID`（否则 `next start` / `start:bt` 必挂）
 - [ ] `npx tsc --noEmit` 无错误
 - [ ] `npm run lint` 通过
 - [ ] 所有环境变量已配置
@@ -451,6 +452,27 @@ interface User {
 - [ ] API 路由正常工作
 - [ ] 静态资源文件存在
 - [ ] 测试用例通过（如果有）
+
+---
+
+## 🧯 PM2 / `next start`：`Could not find a production build in the '.next' directory`
+
+> 详见 `.phrase/docs/ISSUES.md` → **issue007**。
+
+**根因**：未执行或未成功执行 `npm run build`，就用 PM2 跑了 `start:bt`（`next start`）。
+
+**立刻修复**：
+
+```bash
+cd /www/wwwroot/digital-officer-log
+pm2 stop digital-officer-log
+npm run build
+ls .next/BUILD_ID
+PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
+# 或已有进程：pm2 restart digital-officer-log
+```
+
+**防再犯**：`start:bt` 已内置 `scripts/ensure-production-build.js` 门禁；日常更新顺序必须是 `build` → `pm2 restart`。
 
 ---
 
