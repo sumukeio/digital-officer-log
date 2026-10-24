@@ -17,6 +17,7 @@
 | [issue005](#issue005-qc-规则提炼后收益为空) | 2026-09-12 | P1 | QC 样例无三类收益小标题导致 extractBenefits 全空 | `phase-headline-brief-20260912` | [x] 已解决 | 2026-09-12 |
 | [issue006](#issue006-服务器落到-3003--systemconfig-刷屏) | 2026-09-12 | P1 | 端口落到 3003（误用 dev/未用 3002）；SystemConfig 轮询属正常 cron | 部署/运维 | [x] 已解决 | 2026-09-12 |
 | [issue007](#issue007-pm2-startbt-无生产构建--nextbuild) | 2026-09-15 | P1 | PM2 `start:bt` 报错找不到 `.next` 生产构建（production-start-no-build-id） | 部署/运维 | [x] 已解决（文档+启动门禁） | 2026-09-15 |
+| [issue008](#issue008-内网访问提示-err_empty_response-服务无响应排障) | 2026-10-24 | P1 | 内网访问 10.10.10.230 提示 ERR_EMPTY_RESPONSE，服务意外停止 | 部署/运维 | [x] 已解决（文档与自愈沉淀） | 2026-10-24 |
 
 ---
 
@@ -909,3 +910,63 @@ pm2 delete digital-officer-log
 PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
 pm2 save
 ```
+
+
+
+模块：头条周简报
+
+需求：支持单独下载图片。
+
+bug：QC头条粘贴了内容后，点击规则提炼。
+在改善一栏显示暂无，我不知道为什么。我想避免这种问题发生。
+
+bug：生成的图片中，小胶囊中的内容没有展示全面，会用省略号省略掉。
+
+需求：应当支持记录每周的情况，然后以月、年维度来总体分析。
+而目前似乎只是偏向于每周的分析。是否保存我都没法确定。似乎是没有保存的，因为我前几周是点击过保存，下方Toast也提示了”头条周简报已保存“，但是我现在切到前几周发现没有展示。
+
+bug：添加QC模块，我发现点几次，QC模块就增加几次，QC模块似乎可以无限增加。
+
+bug：我点击添加QC模块后，是希望在全新的粘贴框内粘贴Deepseek长文的，
+而不是在原先粘贴生产头条的基础上粘贴。
+
+---
+
+<a id="issue008-内网访问提示-err_empty_response-服务无响应排障"></a>
+
+### [issue008] 内网访问提示 ERR_EMPTY_RESPONSE / 服务意外停止排障
+- **发现时间**：2026-10-24
+- **严重等级**：P1 (阻断)
+- **复现步骤 / 触发条件**：
+  1. 浏览器访问内网服务器地址（例如 `http://10.10.10.230:3002` 或反代地址）。
+  2. 页面无法打开，Chrome/Edge 报错：
+     > `This page isn’t working`  
+     > `10.10.10.230 didn't send any data. ERR_EMPTY_RESPONSE`
+- **根本原因分析 (Root Cause)**：
+  1. 服务器重启或守护退出后，因之前未执行 `pm2 save` 与 `pm2 startup`，PM2 列表被清空，执行 `pm2 restart` 抛出 `Process or Namespace digital-officer-log not found`；
+  2. 访问 URL 未携带分配的独立端口 `3002`，且当前未配置 Nginx 80 端口的反向代理；
+  3. 服务器安全组 / 宝塔防火墙未放行目标端口导致 TCP 握手异常中断。
+- **解决方案与修复任务**：
+  1. **定位日志**：执行 `pm2 status` 确认列表是否为空；
+  2. **标准拉起与自愈命令链**（实战验证成功）：
+     ```bash
+     cd /www/wwwroot/digital-officer-log
+     ls -la .next/BUILD_ID || npm run build
+     PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
+     pm2 save
+     pm2 startup
+     ```
+  3. **就绪标志**（2026-10-24 验证通过）：
+     ```text
+     ▲ Next.js 16.0.8
+     - Local:         http://localhost:3002
+     - Network:       http://10.10.10.230:3002
+     ✓ Ready in 3.9s
+     ⏰ 定时任务服务已启动 (Zeabur / Docker Mode)...
+     ```
+  4. **端口核实**：直连必须带端口 `http://10.10.10.230:3002`；反代必须确认上游指向 `http://127.0.0.1:3002`；
+  5. **知识沉淀**：已同步写入 [docs/guide/bt-panel-deployment-guide.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/bt-panel-deployment-guide.md) 第十节与 [docs/guide/deployment-troubleshooting.md](file:///d:/j/OpenProject/Nextproject/digital-officer-log/docs/guide/deployment-troubleshooting.md)。
+- **防退化措施**：
+  - 启动后必须强制执行 `pm2 save` 和 `pm2 startup` 固化开机启动项；
+  - 更新代码后严格遵循 `git pull` -> `npm install` -> `npm run build` -> `pm2 restart` 顺序；
+  - 启动脚本 `scripts/ensure-production-build.js` 阻断无产物启动。

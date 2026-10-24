@@ -3,6 +3,18 @@
 > **权威性声明**：本文档遵循 Keep a Changelog 格式规范，**只追加、不覆盖**。
 > **维护规则**：每次完成 Phase 任务或重要工程/业务交付时，在此以标准格式追加最新记录。
 
+## [2026-10-24] - 运维文档沉淀：ERR_EMPTY_RESPONSE 与服务停止快速自愈
+
+### 新增
+- `docs/guide/bt-panel-deployment-guide.md`：新增第十节《日常运维排障速查：服务无响应 (ERR_EMPTY_RESPONSE / 502) 快速自愈》，提供从 PM2 列表为空到 `3002` 端口拉起、`pm2 save` 持久化自启的标准操作链。
+- `docs/guide/deployment-troubleshooting.md`：补充《浏览器报错：ERR_EMPTY_RESPONSE（服务停止/无响应）》排查与自愈标准。
+- `.phrase/docs/ISSUES.md`：登记并闭环 `issue008`（内网访问提示 ERR_EMPTY_RESPONSE / 服务意外停止排障），记录真实就绪日志。
+
+### 验证
+- 服务器 `10.10.10.230` 终端执行 `PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt` 与 `pm2 save` 实战通过，Next.js 16.0.8 正常监听 `3002` 端口，服务完全恢复。
+
+---
+
 ## [2026-09-15] - task027：QC 周期三模式（周/月/自定义）
 
 ### 新增

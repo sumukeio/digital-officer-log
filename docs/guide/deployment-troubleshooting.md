@@ -476,6 +476,51 @@ PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
 
 ---
 
+## 🌐 浏览器报错：`ERR_EMPTY_RESPONSE`（服务停止/无响应）
+
+> 详见 `.phrase/docs/ISSUES.md` → **issue008**。
+
+**现象**：
+内网访问服务（如 `http://10.10.10.230:3002` 或反代域名）时，Chrome/Edge 提示：
+> **This page isn’t working**  
+> `10.10.10.230 didn't send any data.`  
+> `ERR_EMPTY_RESPONSE`
+
+**排查与处理**：
+
+1. **第一步：看 PM2 状态与报错日志**
+   ```bash
+   pm2 status
+   pm2 logs digital-officer-log --lines 100
+   ```
+   - 若状态为 `errored`、`stopped` 或表格完全为**空**（提示 `Spawning PM2 daemon`）：说明服务进程未在运行或 PM2 守护刚重启。
+   - 常见原因：
+     - 服务器重启后未配置开机自启（未执行 `pm2 save` + `pm2 startup`），导致 PM2 列表清空
+     - 未执行 `npm run build`（缺少 `.next/BUILD_ID` 触发门禁退出）
+     - 服务器内存不足（OOM 被杀）
+     - 端口被其他旧进程占用
+
+2. **第二步：清理并重新构建启动（实战验证命令链）**
+   ```bash
+   cd /www/wwwroot/digital-officer-log
+   
+   # 检查构建产物，缺失则全量编译
+   ls -la .next/BUILD_ID || npm run build
+   
+   # 启动并锁定 3002 端口
+   PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
+   
+   # 关键：持久化保存开机自启，防止服务器下次重启后列表再次丢失
+   pm2 save
+   pm2 startup
+   ```
+
+3. **第三步：核对访问端口与防火墙**
+   - 直连访问需在 IP 后输入 `:3002`（如 `http://10.10.10.230:3002`）。
+   - 若直接访问 `http://10.10.10.230`，须确认 Nginx 反向代理配置已启用且代理至 `http://127.0.0.1:3002`。
+
+---
+
 ## 🆘 紧急修复建议
 
 如果部署失败：
@@ -488,4 +533,5 @@ PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
 
 ---
 
-**最后更新：** 2024年12月 (由 Doc-Driven 脚手架优雅迁移治理至 `docs/guide/`)
+**最后更新：** 2026年10月 (追加 ERR_EMPTY_RESPONSE 服务停止排查与运维恢复章节)
+
