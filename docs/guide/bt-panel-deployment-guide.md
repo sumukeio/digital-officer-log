@@ -115,13 +115,19 @@ npm run build
 
 ### 推荐：使用 PM2 守护进程（基于 3002 端口）
 
+> ⚠️ **硬性前置**：必须先完成第五节的 `npm run build`，并确认存在 `.next/BUILD_ID`。  
+> 只跑 `pm2 start` / `start:bt` **不会**自动编译；缺少构建会报 `Could not find a production build in the '.next' directory`（见 ISSUES `issue007`）。
+
 在终端中执行：
 
 ```bash
 cd /www/wwwroot/digital-officer-log
 
-# 使用 PM2 启动服务（指定 3002 端口）
-PORT=3002 pm2 start npm --name "digital-officer-log" -- run start -- -p 3002
+# 门禁：确认生产构建已存在
+ls -la .next/BUILD_ID
+
+# 使用 PM2 + start:bt（固定 3002；启动前会检查 BUILD_ID）
+PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
 
 # 保存 PM2 进程列表以实现开机自启
 pm2 save
@@ -131,7 +137,7 @@ pm2 startup
 > **查看状态与日志**：
 > - 查看运行状态：`pm2 status`
 > - 查看实时日志：`pm2 logs digital-officer-log`
-> - 重启服务：`pm2 restart digital-officer-log`
+> - 重启服务：`pm2 restart digital-officer-log`（改代码后仍须先 `npm run build`）
 
 ---
 
@@ -143,10 +149,11 @@ pm2 startup
    - **项目目录**：`/www/wwwroot/digital-officer-log`
    - **Node 版本**：选择已安装的 `v20.20.2`
    - **包管理器**：`npm`
-   - **启动命令**：`run start -- -p 3002`
+   - **启动命令**：`run start:bt`
    - **项目端口**：`3002`
    - **开机自启**：勾选 ✅
 3. 点击 **「确定」** 启动。
+4. 若报找不到 `.next` 生产构建：回到第五节执行 `npm run build` 后再启动（见 ISSUES `issue007`）。
 
 ---
 
@@ -186,3 +193,58 @@ npx prisma db push
 npm run build
 pm2 restart digital-officer-log
 ```
+
+---
+
+## 十、日常运维排障速查：服务无响应 (ERR_EMPTY_RESPONSE / 502) 快速自愈
+
+### 1. 故障现象
+内网访问服务（如 `http://10.10.10.230:3002` 或反代域名）时，Chrome/Edge 报错：
+> `This page isn’t working`  
+> `10.10.10.230 didn't send any data. ERR_EMPTY_RESPONSE`
+
+在服务器终端排查时出现：
+- 执行 `pm2 status` 显示为空表格，并输出 `[PM2] Spawning PM2 daemon with pm2_home=/root/.pm2`；
+- 执行 `pm2 restart digital-officer-log` 报错：`[PM2][ERROR] Process or Namespace digital-officer-log not found`。
+
+### 2. 根本原因剖析 (Root Cause)
+服务器曾发生过重启或 PM2 守护进程退出，但由于之前未执行 `pm2 save` 与 `pm2 startup` 保存进程清单，导致守护列表中没有任何应用。此时使用 `restart` 会报错找不到进程，必须使用 `start` 重新注册并保存。
+
+### 3. 已验证的标准自愈方案（一键恢复命令链）
+
+在终端依次复制执行以下命令即可完整恢复：
+
+```bash
+cd /www/wwwroot/digital-officer-log
+
+# 1. 确保生产构建产物存在（若未构建则自动触发 npm run build）
+ls -la .next/BUILD_ID || npm run build
+
+# 2. 重新注册并拉起 PM2 守护进程（固定 3002 端口）
+PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt
+
+# 3. 关键：保存 PM2 进程列表并设置开机自启（防止下次服务器重启后再次丢失）
+pm2 save
+pm2 startup
+
+# 4. 查看状态与实时日志
+pm2 status
+pm2 logs digital-officer-log --lines 20
+```
+
+### 4. 服务就绪验证标志
+当在终端看到如下输出且 `pm2 status` 状态为 `online` 时，代表服务已 100% 恢复正常：
+```text
+▲ Next.js 16.0.8
+- Local:         http://localhost:3002
+- Network:       http://10.10.10.230:3002
+
+✓ Starting...
+✓ Ready in 3.9s
+⏰ 定时任务服务已启动 (Zeabur / Docker Mode)...
+```
+
+### 5. 访问地址与防火墙排查
+- **端口直连访问**：浏览器访问 `http://10.10.10.230:3002`（须确认宝塔面板「安全」菜单已放行 `3002` 端口）。
+- **Nginx 反代访问**：若直接访问 `http://10.10.10.230`（80端口），须检查宝塔中对应站点的「反向代理」配置是否指向 `http://127.0.0.1:3002`。
+

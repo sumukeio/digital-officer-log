@@ -23,6 +23,7 @@ model User {
   roles             Role[]        @relation("RoleToUser")
   aiSummaries      AISummary[]
   weeklyReports    WeeklyReport[]
+  headlineBriefs   HeadlineBrief[]
 }
 
 model Role {
@@ -145,4 +146,27 @@ model WeeklyReport {
   @@index([startDate, endDate])
   @@index([year, weekNumber])
   @@index([userId])
+}
+
+/// 头条「问题—改善—收益」精简周简报（与海铭德指标周报互补）
+model HeadlineBrief {
+  id              String    @id @default(cuid())
+  userId          String
+  title           String    // 如 "9.8-9.14 头条周简报"
+  startDate       DateTime
+  endDate         DateTime
+  weekNumber      Int
+  year            Int
+  modules         String    // JSON: HeadlineModule[]
+  rawSource       String?   // 可选：原始粘贴长文备份
+  markdownContent String    // 合并企微 Markdown
+  isPushedToWecom Boolean   @default(false)
+  pushedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id])
+
+  @@index([year, weekNumber])
+  @@index([userId])
+  @@unique([userId, year, weekNumber])
 }

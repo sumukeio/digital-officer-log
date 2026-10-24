@@ -1,7 +1,7 @@
 # 数字官工作台 — 系统模块与功能全景梳理
 
 > **状态**：[权威/现行]  
-> **更新时间**：2026-08-30  
+> **更新时间**：2026-09-15  
 > **文档定位**：全量业务模块、功能清单与系统技术架构的全景参考文档。
 
 ---
@@ -112,6 +112,32 @@ graph TD
 
 ---
 
+### 6b. QC 头条按车间统计 (QC Workshop)
+- **路由路径**：`/qc-workshop`
+- **需求文档**：[docs/rcfs/RFC002.md](../rcfs/RFC002.md)
+- **核心逻辑**：`src/lib/qc-workshop/`、`src/app/qc-workshop/`
+- **主要功能**：
+  1. **机台归属**：导入「机台映射表.xlsx」+ RFC002 别名（T001→二部、喷绘→七部、装箱/吸塑无前缀→九部）。
+  2. **数据入口**：优先读取「周报生成」页当周已上传的 QC 行（浏览器 localStorage 缓存，仅「周」模式）；可本页直接上传 QC Excel。
+  3. **周期三模式**：左上角切换「周 | 月 | 自定义」；月含「整月 / 月初至今」；**整表当区间**（不按开卡时间裁剪）。
+  4. **统计预览**：全厂/分车间条数、TOP 问题、未归类清单。
+  5. **导出**：分析 Excel（全厂概览 + 有数据车间各 Sheet）、纯文本摘要、复制全厂/分车间海铭德 AI Prompt。
+  6. **MVP 边界**：不自动调 LLM；不强制接入 headline-brief 海报（第二版联动）。
+
+---
+
+### 6c. 头条周简报（问题—改善—收益）(Headline Brief)
+- **路由路径**：`/headline-brief`
+- **核心逻辑**：`src/lib/headline-brief/`、`src/app/actions/headline-brief.ts`、`src/components/headline-brief/`
+- **主要功能**：
+  1. **粘贴提炼**：将 DeepSeek「问题—改善—收益」长文规则压缩为结构化草稿（问题≤3、改善≤4、收益三类各 1 句）。
+  2. **人工改稿 + 企微短 Markdown**：预览、复制、合并/分模块一键推送（复用 `WECOM_WEBHOOK_URL`）。
+  3. **一页竖版海报 PNG**：同数据源 Canvas 导出，便于群内发图。
+  4. **指标联动**：可从当周已存海铭德 `WeeklyReport.metrics` 生成问题结论骨架。
+  5. **按周存档**：`HeadlineBrief` 模型按用户+年+周唯一持久化。
+
+---
+
 ### 7. 后台管理与配置中心 (Admin Settings)
 - **路由路径**：`/admin/users`, `/admin/template`, `/admin/system`
 - **核心逻辑**：`src/app/actions/admin.ts`
@@ -145,10 +171,10 @@ graph TD
 - **路由路径**：`/badge`
 - **核心逻辑**：`src/lib/badge/`, `src/app/badge/`, `src/components/badge/`
 - **主要功能**：
-  1. **1:1 WYSIWYG 实时预览**：标准 54mm × 86mm (CR80) 矢量工牌卡片，支持自定义企业 Logo、Header 配色、照片框与两端对齐字段。
-  2. **矢量二维码生成**：内置纯前端 SVG 二维码点阵，告别位图拉伸发虚。
-  3. **批量 Excel 导入与在册数字官一键同步**：支持拖拽导入 Excel、下载标准模版、一键读取数字官用户列表。
-  4. **高精 A4 拼版打印**：2列×4行网格布局，配备四角裁切辅助十字线，配合浏览器 `@media print` 输出清晰矢量打印或 PDF。
+  1. **1:1 WYSIWYG 实时预览**：设计画布 600×1000 px，物理尺寸 **54mm × 90mm**（与参考工牌生成器一致），支持企业 Logo、公司字标、照片框与两端对齐字段。
+  2. **标准二维码 + 中心 Logo**：基于 `qrcode` 库生成可扫描 QR，中心嵌套企业 Logo（高度 ≈ qrSize/4）。
+  3. **快速录入 / Excel 批量导入**：表单单条添加或 Excel 导入；列表默认空（无演示脏数据）；面向全公司员工，无「载入数字官」。
+  4. **导出 PDF（正式交付）**：Canvas 渲染单卡 → `pdf-lib` 拼 A4（3×3、页边距居中、裁切延长线），下载 `工牌.pdf`，用 WPS 打开打印；效果对齐参考工具。
 
 ---
 
@@ -176,6 +202,8 @@ graph TD
 | **`TaskLog`** | 任务操作日志表 | 存储任务每次变动的操作人 (`operatorId`/`operatorName`)、动作类型 (`action`)、变更详情与时间戳。 |
 | **`Issue`** | 故障案例表 | 存储问题标题、现象描述与故障图片、解决方案描述与改善后图片，关联创建用户。 |
 | **`AISummary`** | AI 总结记录表 | 存储 AI 生成的周报/月报 Markdown 内容、统计起止时间 (`startDate`/`endDate`)，关联用户。 |
+| **`WeeklyReport`** | 海铭德指标周报表 | 存储 Excel 解析指标快照、手写板块、企微 Markdown 与推送状态。 |
+| **`HeadlineBrief`** | 头条周简报表 | 存储「问题—改善—收益」结构化 modules JSON、合并 Markdown、原始长文备份与推送状态；`userId+year+weekNumber` 唯一。 |
 | **`QuickLink`** | 快捷链接表 | 存储首页快捷导航的标题、URL 地址与排序权重。 |
 | **`SystemConfig`** | 系统参数配置表 | 以 Key-Value 形式存储系统公告、全局功能开关等系统级配置项。 |
 

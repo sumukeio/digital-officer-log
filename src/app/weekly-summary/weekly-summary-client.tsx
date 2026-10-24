@@ -45,6 +45,8 @@ import {
   getLastWeekMetrics,
   getWeeklyReportByPeriod,
 } from "@/app/actions/weekly-report";
+import { saveQcRowsForWeek } from "@/lib/qc-workshop/browser-storage";
+import { QcRawRow } from "@/lib/qc-workshop";
 import {
   Dialog,
   DialogContent,
@@ -134,7 +136,16 @@ export default function WeeklySummaryClient({
                 setManualSections(JSON.parse(savedReport.manualSections));
               }
               if (savedReport.activeModules) {
-                setActiveModules(JSON.parse(savedReport.activeModules));
+                const parsed = JSON.parse(savedReport.activeModules);
+                if (Array.isArray(parsed)) {
+                  const map: Record<string, boolean> = {};
+                  parsed.forEach((k: string) => {
+                    map[k] = true;
+                  });
+                  setActiveModules(map);
+                } else if (parsed && typeof parsed === "object") {
+                  setActiveModules(parsed);
+                }
               }
             } catch (parseErr) {
               console.error("解析历史周报数据失败:", parseErr);
@@ -160,6 +171,13 @@ export default function WeeklySummaryClient({
   const handleAddFiles = (newFiles: RecognizedFile[]) => {
     setFiles((prev) => [...prev, ...newFiles]);
   };
+
+  // 同步 QC 原始行到 localStorage，供 /qc-workshop 读取（RFC002 优先复用周报同源数据）
+  useEffect(() => {
+    const qcFile = files.find((f) => f.moduleType === "qc" && f.rows.length > 0);
+    if (!qcFile) return;
+    saveQcRowsForWeek(dateRange, qcFile.rows as QcRawRow[], qcFile.fileName);
+  }, [files, dateRange]);
 
   // 移除文件
   const handleRemoveFile = (fileId: string) => {
@@ -203,16 +221,18 @@ export default function WeeklySummaryClient({
       dateRange,
       metrics,
       manualSections,
+      activeModules,
     });
-  }, [dateRange, metrics, manualSections]);
+  }, [dateRange, metrics, manualSections, activeModules]);
 
   const markdownReport = useMemo(() => {
     return generateWeComMarkdownWeeklyReport({
       dateRange,
       metrics,
       manualSections,
+      activeModules,
     });
-  }, [dateRange, metrics, manualSections]);
+  }, [dateRange, metrics, manualSections, activeModules]);
 
   // 保存周报到数据库
   const handleSaveReport = async () => {

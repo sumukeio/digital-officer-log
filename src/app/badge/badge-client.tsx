@@ -6,13 +6,13 @@ import {
   BadgeItem,
   BadgeTemplateConfig,
   DEFAULT_BADGE_CONFIG,
-  DEFAULT_SAMPLE_BADGES,
+  EMPTY_PREVIEW_BADGE,
 } from '@/lib/badge/types';
 import {
   parseBadgeExcel,
   generateBadgeExcelTemplate,
-  convertUsersToBadges,
 } from '@/lib/badge/excel-importer';
+import { exportBadgesPdf, downloadPdfBlob } from '@/lib/badge/export-pdf';
 import { BadgeCard } from '@/components/badge/BadgeCard';
 import { A4PrintSheet } from '@/components/badge/A4PrintSheet';
 import { Button } from '@/components/ui/button';
@@ -24,12 +24,11 @@ import {
   ArrowLeft,
   Upload,
   Download,
-  Printer,
+  FileDown,
   Plus,
   Trash2,
   CheckSquare,
   Square,
-  Users,
   Eye,
   LayoutGrid,
   ShieldCheck,
@@ -48,15 +47,9 @@ interface BadgeClientProps {
     name: string | null;
     workId: string;
   };
-  systemUsers?: Array<{
-    id: string;
-    name: string | null;
-    workId: string;
-    assignedAreas?: string | null;
-  }>;
 }
 
-export default function BadgeClient({ systemUsers = [] }: BadgeClientProps) {
+export default function BadgeClient(_props: BadgeClientProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -64,18 +57,23 @@ export default function BadgeClient({ systemUsers = [] }: BadgeClientProps) {
 
   // 核心状态
   const [config, setConfig] = useState<BadgeTemplateConfig>(DEFAULT_BADGE_CONFIG);
-  const [badges, setBadges] = useState<BadgeItem[]>(DEFAULT_SAMPLE_BADGES);
+  const [badges, setBadges] = useState<BadgeItem[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedBadgeIndex, setSelectedBadgeIndex] = useState<number>(0);
   const [previewZoom, setPreviewZoom] = useState<number>(0.65);
   const [previewTab, setPreviewTab] = useState<'single' | 'a4'>('single');
   const [activeLeftTab, setActiveLeftTab] = useState<'design' | 'data'>('design');
 
-  // 本地持久化加载
+  // 本地持久化加载（顺带修正已知旧默认偏差）
   useEffect(() => {
     try {
       const savedConfig = localStorage.getItem('badge_layout_config_v2');
       if (savedConfig) {
-        setConfig(JSON.parse(savedConfig));
+        const parsed = JSON.parse(savedConfig) as Partial<BadgeTemplateConfig>;
+        // 旧版默认 photoW=260 / textValueX=250，对齐参考后改为 250 / 253
+        if (parsed.photoW === 260) parsed.photoW = 250;
+        if (parsed.textValueX === 250) parsed.textValueX = 253;
+        setConfig({ ...DEFAULT_BADGE_CONFIG, ...parsed });
       }
     } catch (e) {
       console.error('加载本地工牌配置失败:', e);
@@ -103,7 +101,7 @@ export default function BadgeClient({ systemUsers = [] }: BadgeClientProps) {
   }>({
     name: '',
     department: '',
-    post: '数字工程师',
+    post: '',
     workNo: '',
     entryDate: new Date().toISOString().split('T')[0],
   });
@@ -165,25 +163,6 @@ export default function BadgeClient({ systemUsers = [] }: BadgeClientProps) {
     }
   };
 
-  // 一键从系统数字官列表导入
-  const handleSyncSystemUsers = () => {
-    if (!systemUsers || systemUsers.length === 0) {
-      toast.error('系统暂无其他在册数字官用户');
-      return;
-    }
-    const converted = convertUsersToBadges(systemUsers);
-    setBadges((prev) => {
-      const existingWorkNos = new Set(prev.map((b) => b.workNo));
-      const newItems = converted.filter((b) => !existingWorkNos.has(b.workNo));
-      if (newItems.length === 0) {
-        toast.info('系统数字官均已在工牌列表中');
-        return prev;
-      }
-      toast.success(`已载入 ${newItems.length} 名系统在册数字官！`);
-      return [...prev, ...newItems];
-    });
-  };
-
   // 添加单条
   const handleAddSingleBadge = (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,21 +215,29 @@ export default function BadgeClient({ systemUsers = [] }: BadgeClientProps) {
     }
   };
 
-  // 调起打印
-  const handlePrint = () => {
+  // 导出 PDF（对齐参考工具：位图工牌 → A4 3×3 PDF，供 WPS 打开打印）
+  const handleExportPdf = async () => {
     const enabledCount = badges.filter((b) => b.enabled).length;
     if (enabledCount === 0) {
-      toast.error('请至少勾选一张工牌进行打印');
+      toast.error('请至少勾选一张工牌再导出 PDF');
       return;
     }
     setPreviewTab('a4');
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    setIsExporting(true);
+    try {
+      const blob = await exportBadgesPdf(badges, config);
+      downloadPdfBlob(blob, '工牌.pdf');
+      toast.success(`已导出 ${enabledCount} 张工牌 PDF，可用 WPS 打开打印`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('导出 PDF 失败: ' + msg);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const enabledBadges = badges.filter((b) => b.enabled);
-  const activeBadge = badges[selectedBadgeIndex] || badges[0] || DEFAULT_SAMPLE_BADGES[0];
+  const activeBadge = badges[selectedBadgeIndex] || badges[0] || EMPTY_PREVIEW_BADGE;
 
   // 渲染参数滑块控件
   const renderSlider = (
@@ -323,7 +310,7 @@ export default function BadgeClient({ systemUsers = [] }: BadgeClientProps) {
                 万得福工牌设计器
               </h1>
               <p className="text-[11px] text-slate-400 hidden sm:block">
-                自由参数调节 · 实时高保真预览 · A4 高精拼版
+                全员工牌 · 实时预览 · 导出 PDF（54×90mm / A4 3×3）
               </p>
             </div>
           </div>
@@ -343,11 +330,13 @@ export default function BadgeClient({ systemUsers = [] }: BadgeClientProps) {
           </Button>
 
           <Button
-            onClick={handlePrint}
+            onClick={handleExportPdf}
+            disabled={isExporting}
             size="sm"
             className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5 text-xs"
           >
-            <Printer className="w-3.5 h-3.5" /> 打印 / 导出 PDF ({enabledBadges.length})
+            <FileDown className="w-3.5 h-3.5" />
+            {isExporting ? '正在生成 PDF…' : `导出 PDF (${enabledBadges.length})`}
           </Button>
         </div>
       </nav>
@@ -544,14 +533,6 @@ export default function BadgeClient({ systemUsers = [] }: BadgeClientProps) {
                     >
                       <Upload className="w-3 h-3 mr-1" /> 导入 Excel
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSyncSystemUsers}
-                      className="h-6 px-2 text-[11px] text-slate-700 border-slate-200"
-                    >
-                      <Users className="w-3 h-3 mr-1 text-blue-600" /> 载入数字官
-                    </Button>
                   </div>
                 </div>
 
@@ -633,7 +614,7 @@ export default function BadgeClient({ systemUsers = [] }: BadgeClientProps) {
                     onClick={handleToggleSelectAll}
                     className="h-6 px-2 text-xs text-slate-600 hover:text-blue-600"
                   >
-                    {badges.every((b) => b.enabled) ? (
+                    {badges.length > 0 && badges.every((b) => b.enabled) ? (
                       <CheckSquare className="w-3.5 h-3.5 mr-1 text-blue-600" />
                     ) : (
                       <Square className="w-3.5 h-3.5 mr-1 text-slate-400" />
@@ -644,10 +625,15 @@ export default function BadgeClient({ systemUsers = [] }: BadgeClientProps) {
                 </div>
 
                 <div className="max-h-[380px] overflow-y-auto">
+                  {badges.length === 0 ? (
+                    <div className="py-10 text-center text-xs text-slate-400 px-4">
+                      列表为空。请用上方表单快速录入，或导入 Excel。
+                    </div>
+                  ) : (
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-500 sticky top-0">
                       <tr>
-                        <th className="py-2 px-2.5 w-8 text-center">打</th>
+                        <th className="py-2 px-2.5 w-8 text-center">选</th>
                         <th className="py-2 px-2">姓名</th>
                         <th className="py-2 px-2">部门</th>
                         <th className="py-2 px-2">工号</th>
@@ -701,6 +687,7 @@ export default function BadgeClient({ systemUsers = [] }: BadgeClientProps) {
                       ))}
                     </tbody>
                   </table>
+                  )}
                 </div>
               </Card>
             </TabsContent>

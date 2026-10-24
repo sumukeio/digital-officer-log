@@ -9,8 +9,23 @@ export interface ReportGenerationOptions {
   dateRange: DateRangeInfo;
   metrics: AllWeeklyMetrics;
   manualSections: ManualSections;
-  activeModules?: string[]; // 可选启用的模块列表
+  activeModules?: string[] | Record<string, boolean>; // 可选启用的模块列表（支持数组或布尔对象映射）
 }
+
+/**
+ * 判断指定模块当前是否处于启用状态
+ */
+export function isModuleActive(
+  moduleKey: string,
+  activeModules?: string[] | Record<string, boolean>
+): boolean {
+  if (!activeModules) return true;
+  if (Array.isArray(activeModules)) {
+    return activeModules.includes(moduleKey);
+  }
+  return activeModules[moduleKey] !== false;
+}
+
 
 export const DEFAULT_MANUAL_SECTIONS: ManualSections = {
   inspection: '一二三五七部都在正常使用。',
@@ -72,7 +87,7 @@ export const EMPTY_MANUAL_SECTIONS: ManualSections = {
  * 生成标准微信群格式纯文本周报
  */
 export function generatePlainTextWeeklyReport(options: ReportGenerationOptions): string {
-  const { dateRange, metrics, manualSections } = options;
+  const { dateRange, metrics, manualSections, activeModules } = options;
   const sections: string[] = [];
 
   // 标题
@@ -81,7 +96,7 @@ export function generatePlainTextWeeklyReport(options: ReportGenerationOptions):
   let index = 1;
 
   // 1. 生产头条
-  if (metrics.production) {
+  if (metrics.production && isModuleActive('production', activeModules)) {
     const p = metrics.production;
     const wowStr = p.wowRate !== null && p.wowRate !== undefined ? `，${formatWowText(p.wowRate)}` : '';
     
@@ -104,7 +119,7 @@ export function generatePlainTextWeeklyReport(options: ReportGenerationOptions):
   }
 
   // 2. QC 头条
-  if (metrics.qc) {
+  if (metrics.qc && isModuleActive('qc', activeModules)) {
     const q = metrics.qc;
     const wowStr = q.wowRate !== null && q.wowRate !== undefined ? `，${formatWowText(q.wowRate)}` : '';
     const defaultQcReflection = manualSections.qcReflection || 
@@ -119,7 +134,7 @@ export function generatePlainTextWeeklyReport(options: ReportGenerationOptions):
   }
 
   // 3. 新随拍
-  if (metrics.punch) {
+  if (metrics.punch && isModuleActive('punch', activeModules)) {
     const pu = metrics.punch;
     const wowStr = pu.wowRate !== null && pu.wowRate !== undefined ? `，${formatWowText(pu.wowRate)}` : '';
     const topParts = pu.topDepts.map(d => `${d.shortName}打卡占比${d.percentage}%`);
@@ -133,7 +148,7 @@ export function generatePlainTextWeeklyReport(options: ReportGenerationOptions):
   }
 
   // 4. OKR (若有解析)
-  if (metrics.okr) {
+  if (metrics.okr && isModuleActive('okr', activeModules)) {
     const o = metrics.okr;
     const wowStr = o.wowRate !== null && o.wowRate !== undefined ? `，${formatWowText(o.wowRate)}` : '';
     sections.push(
@@ -143,31 +158,31 @@ export function generatePlainTextWeeklyReport(options: ReportGenerationOptions):
   }
 
   // 5. 设备点检
-  if (manualSections.inspection !== undefined) {
+  if (isModuleActive('inspection', activeModules) && manualSections.inspection !== undefined && manualSections.inspection !== '') {
     sections.push(`${index}、设备点检：${manualSections.inspection}`);
     index++;
   }
 
   // 6. 设备保养
-  if (manualSections.maintenance !== undefined) {
+  if (isModuleActive('maintenance', activeModules) && manualSections.maintenance !== undefined && manualSections.maintenance !== '') {
     sections.push(`${index}、设备保养：${manualSections.maintenance}`);
     index++;
   }
 
   // 7. 必应
-  if (manualSections.binying !== undefined) {
+  if (isModuleActive('binying', activeModules) && manualSections.binying !== undefined && manualSections.binying !== '') {
     sections.push(`${index}、必应：${manualSections.binying}`);
     index++;
   }
 
   // 8. 任务格子
-  if (manualSections.taskGrid !== undefined) {
+  if (isModuleActive('taskGrid', activeModules) && manualSections.taskGrid !== undefined && manualSections.taskGrid !== '') {
     sections.push(`${index}、任务格子：${manualSections.taskGrid}`);
     index++;
   }
 
   // 9. 集体培训
-  if (manualSections.training) {
+  if (isModuleActive('training', activeModules) && manualSections.training && (manualSections.training.theme || manualSections.training.trainer)) {
     const t = manualSections.training;
     const examStr = `本周${t.trainer}举行了${t.theme}，并组织了考试，90分及以上${t.scoreOver90}人，80分-89分${t.score80to89}人，${t.incentive}。`;
     const examCenterStr = t.futureExamCenter ? '\n后续的考试可以使用学院版块的考试中心进行。' : '';
@@ -178,25 +193,25 @@ export function generatePlainTextWeeklyReport(options: ReportGenerationOptions):
   }
 
   // 10. 激励
-  if (manualSections.rewards !== undefined) {
+  if (isModuleActive('rewards', activeModules) && manualSections.rewards !== undefined && manualSections.rewards !== '') {
     sections.push(`${index}、激励：${manualSections.rewards}`);
     index++;
   }
 
   // 11. 公告栏
-  if (manualSections.bulletin !== undefined) {
+  if (isModuleActive('bulletin', activeModules) && manualSections.bulletin !== undefined && manualSections.bulletin !== '') {
     sections.push(`${index}、公告栏：${manualSections.bulletin}`);
     index++;
   }
 
   // 12. 综合点检
-  if (manualSections.inspectionGeneral !== undefined) {
+  if (isModuleActive('inspectionGeneral', activeModules) && manualSections.inspectionGeneral !== undefined && manualSections.inspectionGeneral !== '') {
     sections.push(`${index}、综合点检：${manualSections.inspectionGeneral}`);
     index++;
   }
 
   // 13. 嘟嘟卡
-  if (manualSections.dudu) {
+  if (isModuleActive('dudu', activeModules) && manualSections.dudu) {
     const d = manualSections.dudu;
     sections.push(
       `${index}、嘟嘟卡：\n1）${d.nightShift}\n2）${d.planner}\n3）${d.siteConsistency}`
@@ -204,8 +219,8 @@ export function generatePlainTextWeeklyReport(options: ReportGenerationOptions):
     index++;
   }
 
-  // 精益 (如果启用)
-  if (metrics.lean) {
+  // 14. 精益 (如果启用)
+  if (metrics.lean && isModuleActive('lean', activeModules)) {
     const l = metrics.lean;
     const parts = l.workshopStats.map(ws => `${ws.shortName}开卡${ws.count}条`);
     sections.push(
@@ -214,8 +229,8 @@ export function generatePlainTextWeeklyReport(options: ReportGenerationOptions):
     index++;
   }
 
-  // 系统改进建议
-  if (manualSections.improvements && manualSections.improvements.length > 0) {
+  // 15. 系统改进建议
+  if (isModuleActive('improvements', activeModules) && manualSections.improvements && manualSections.improvements.length > 0) {
     const impList = manualSections.improvements.map((item, idx) => `${idx + 1}、${item}`).join('\n');
     sections.push(`系统改进建议：\n${impList}`);
   }
@@ -227,7 +242,7 @@ export function generatePlainTextWeeklyReport(options: ReportGenerationOptions):
  * 生成企业微信群机器人 Markdown 格式消息
  */
 export function generateWeComMarkdownWeeklyReport(options: ReportGenerationOptions): string {
-  const { dateRange, metrics, manualSections } = options;
+  const { dateRange, metrics, manualSections, activeModules } = options;
   const lines: string[] = [];
 
   lines.push(`### 📊 **${dateRange.titleFormatted} 海铭德系统使用周报**`);
@@ -236,7 +251,7 @@ export function generateWeComMarkdownWeeklyReport(options: ReportGenerationOptio
   let index = 1;
 
   // 1. 生产头条
-  if (metrics.production) {
+  if (metrics.production && isModuleActive('production', activeModules)) {
     const p = metrics.production;
     const wowStr = p.wowRate !== null && p.wowRate !== undefined
       ? (p.wowRate < 0 ? `，环比<font color="warning">下跌${Math.abs(p.wowRate)}%</font>` : `，环比<font color="info">增长${p.wowRate}%</font>`)
@@ -252,15 +267,15 @@ export function generateWeComMarkdownWeeklyReport(options: ReportGenerationOptio
     if (p.over48Count > 0) {
       lines.push(`> 超期预警：<font color="warning">${p.over48Count} 条</font> 停机处理时长超过 48 小时`);
     }
-    if (manualSections.productionReflection) {
-      lines.push(`> 反思：${manualSections.productionReflection}`);
-    }
+    const defaultProdReflection = manualSections.productionReflection ||
+      '由于关闭企微提醒，开卡后无法主动提醒到责任人，解决问题效率远不如直接企微沟通，导致开卡数量总体不多。';
+    lines.push(`> 反思：${defaultProdReflection}`);
     lines.push('');
     index++;
   }
 
   // 2. QC 头条
-  if (metrics.qc) {
+  if (metrics.qc && isModuleActive('qc', activeModules)) {
     const q = metrics.qc;
     const wowStr = q.wowRate !== null && q.wowRate !== undefined
       ? (q.wowRate < 0 ? `，环比<font color="warning">下跌${Math.abs(q.wowRate)}%</font>` : `，环比<font color="info">增长${q.wowRate}%</font>`)
@@ -270,15 +285,17 @@ export function generateWeComMarkdownWeeklyReport(options: ReportGenerationOptio
     if (q.over48Count > 0) {
       lines.push(`> 超期预警：<font color="warning">${q.over48Count} 条</font> 超过 48 小时未处理已督促关卡`);
     }
-    if (manualSections.qcReflection) {
-      lines.push(`> 反思：${manualSections.qcReflection}`);
-    }
+    const defaultQcReflection = manualSections.qcReflection ||
+      (q.over48Count > 0
+        ? `${q.over48Count} 条处理时间较长超过 48 小时未处理，较上周有所减少，已督促关卡。`
+        : '各条头条均得到及时关卡处理。');
+    lines.push(`> 反思：${defaultQcReflection}`);
     lines.push('');
     index++;
   }
 
   // 3. 新随拍
-  if (metrics.punch) {
+  if (metrics.punch && isModuleActive('punch', activeModules)) {
     const pu = metrics.punch;
     const wowStr = pu.wowRate !== null && pu.wowRate !== undefined
       ? (pu.wowRate < 0 ? `，环比<font color="warning">下跌${Math.abs(pu.wowRate)}%</font>` : `，环比<font color="info">增长${pu.wowRate}%</font>`)
@@ -286,25 +303,85 @@ export function generateWeComMarkdownWeeklyReport(options: ReportGenerationOptio
     const topStr = pu.topDepts.map(d => `${d.shortName}占比 **${d.percentage}%**`).join('，');
     lines.push(`**${index}、新随拍**`);
     lines.push(`> 本周打卡人次：**${pu.totalPunches} 人次**${wowStr}`);
-    lines.push(`> 部门占比：${topStr}`);
-    if (manualSections.punchReflection) {
-      lines.push(`> 提示：${manualSections.punchReflection}`);
+    if (topStr) {
+      lines.push(`> 部门占比：${topStr}`);
+    }
+    const punchReflection = manualSections.punchReflection || '二部需继续进步。';
+    lines.push(`> 提示：${punchReflection}`);
+    lines.push('');
+    index++;
+  }
+
+  // 4. OKR (若有解析)
+  if (metrics.okr && isModuleActive('okr', activeModules)) {
+    const o = metrics.okr;
+    const wowStr = o.wowRate !== null && o.wowRate !== undefined
+      ? (o.wowRate < 0 ? `，环比<font color="warning">下跌${Math.abs(o.wowRate)}%</font>` : `，环比<font color="info">增长${o.wowRate}%</font>`)
+      : '';
+    lines.push(`**${index}、OKR**`);
+    lines.push(`> 本周总体开卡数：**${o.totalCards} 条**${wowStr}`);
+    lines.push('');
+    index++;
+  }
+
+  // 5. 设备点检、保养与综合点检
+  const hasInspection = isModuleActive('inspection', activeModules) && !!manualSections.inspection;
+  const hasMaintenance = isModuleActive('maintenance', activeModules) && !!manualSections.maintenance;
+  const hasInspectionGeneral = isModuleActive('inspectionGeneral', activeModules) && !!manualSections.inspectionGeneral;
+  if (hasInspection || hasMaintenance || hasInspectionGeneral) {
+    lines.push(`**${index}、设备点检与保养**`);
+    if (hasInspection && manualSections.inspection) lines.push(`> 点检：${manualSections.inspection}`);
+    if (hasMaintenance && manualSections.maintenance) lines.push(`> 保养：${manualSections.maintenance}`);
+    if (hasInspectionGeneral && manualSections.inspectionGeneral) lines.push(`> 综合点检：${manualSections.inspectionGeneral}`);
+    lines.push('');
+    index++;
+  }
+
+  // 6. 必应与任务格子
+  const hasBinying = isModuleActive('binying', activeModules) && !!manualSections.binying;
+  const hasTaskGrid = isModuleActive('taskGrid', activeModules) && !!manualSections.taskGrid;
+  if (hasBinying || hasTaskGrid) {
+    lines.push(`**${index}、必应与任务格子**`);
+    if (hasBinying && manualSections.binying) lines.push(`> 必应：${manualSections.binying}`);
+    if (hasTaskGrid && manualSections.taskGrid) {
+      const gridLines = manualSections.taskGrid.split('\n');
+      lines.push(`> 任务格子：${gridLines[0]}`);
+      gridLines.slice(1).forEach(gl => {
+        if (gl.trim()) lines.push(`> ${gl}`);
+      });
     }
     lines.push('');
     index++;
   }
 
-  // 4. 设备点检 & 保养
-  if (manualSections.inspection || manualSections.maintenance) {
-    lines.push(`**${index}、设备点检与保养**`);
-    if (manualSections.inspection) lines.push(`> 点检：${manualSections.inspection}`);
-    if (manualSections.maintenance) lines.push(`> 保养：${manualSections.maintenance}`);
+  // 7. 集体培训
+  const hasTraining = isModuleActive('training', activeModules) && !!manualSections.training && !!(manualSections.training.theme || manualSections.training.trainer);
+  if (hasTraining && manualSections.training) {
+    const t = manualSections.training;
+    lines.push(`**${index}、集体培训**`);
+    lines.push(`> 使用情况良好，生产、品质部门每次举行培训时都会使用，已经养成习惯。`);
+    lines.push(`> 本周${t.trainer}举行了《${t.theme}》，并组织了考试，90分及以上 **${t.scoreOver90}人**，80分-89分 **${t.score80to89}人**，${t.incentive}。`);
+    if (t.futureExamCenter) {
+      lines.push(`> 后续的考试可以使用学院版块的考试中心进行。`);
+    }
     lines.push('');
     index++;
   }
 
-  // 5. 嘟嘟卡与系统改进
-  if (manualSections.dudu) {
+  // 8. 公告与激励
+  const hasRewards = isModuleActive('rewards', activeModules) && !!manualSections.rewards;
+  const hasBulletin = isModuleActive('bulletin', activeModules) && !!manualSections.bulletin;
+  if (hasRewards || hasBulletin) {
+    lines.push(`**${index}、公告与激励**`);
+    if (hasBulletin && manualSections.bulletin) lines.push(`> 公告栏：${manualSections.bulletin}`);
+    if (hasRewards && manualSections.rewards) lines.push(`> 激励：${manualSections.rewards}`);
+    lines.push('');
+    index++;
+  }
+
+  // 9. 嘟嘟卡
+  const hasDudu = isModuleActive('dudu', activeModules) && !!manualSections.dudu;
+  if (hasDudu && manualSections.dudu) {
     const d = manualSections.dudu;
     lines.push(`**${index}、嘟嘟卡运行情况**`);
     lines.push(`> 1）${d.nightShift}`);
@@ -314,7 +391,19 @@ export function generateWeComMarkdownWeeklyReport(options: ReportGenerationOptio
     index++;
   }
 
-  if (manualSections.improvements && manualSections.improvements.length > 0) {
+  // 10. 精益 (如果启用)
+  if (metrics.lean && isModuleActive('lean', activeModules)) {
+    const l = metrics.lean;
+    const parts = l.workshopStats.map(ws => `${ws.shortName}开卡${ws.count}条`);
+    lines.push(`**${index}、精益**`);
+    lines.push(`> 本周开卡共 **${l.totalCards} 条**（${parts.join('，')}）。`);
+    lines.push('');
+    index++;
+  }
+
+  // 11. 系统改进建议
+  const hasImprovements = isModuleActive('improvements', activeModules) && !!manualSections.improvements && manualSections.improvements.length > 0;
+  if (hasImprovements && manualSections.improvements) {
     lines.push(`**💡 系统改进建议**`);
     manualSections.improvements.forEach((item, idx) => {
       lines.push(`> ${idx + 1}、${item}`);

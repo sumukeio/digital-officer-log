@@ -91,17 +91,17 @@ export const DEFAULT_BADGE_CONFIG: BadgeTemplateConfig = {
   qrY: 89,
   qrSize: 120,
 
-  // 4. 照片框
+  // 4. 照片框（对齐参考 layout_config.json）
   photoX: 175,
   photoY: 240,
-  photoW: 260,
+  photoW: 250,
   photoH: 350,
 
-  // 5. 底部文字
+  // 5. 底部文字（对齐参考 layout_config.json）
   textStartY: 639,
   textLineH: 65,
   textLabelX: 59,
-  textValueX: 250,
+  textValueX: 253,
   textValueW: 280,
   fontSize: 32,
 
@@ -115,6 +115,18 @@ export const DEFAULT_BADGE_CONFIG: BadgeTemplateConfig = {
   showCropMarks: true,
 };
 
+/** 仅用于预览占位 / 单测，不再作为列表初始数据 */
+export const EMPTY_PREVIEW_BADGE: BadgeItem = {
+  id: 'badge-preview-empty',
+  name: '',
+  department: '',
+  post: '',
+  workNo: '',
+  entryDate: '',
+  enabled: false,
+};
+
+/** @deprecated 演示数据仅保留给单测拼版用例，UI 初始列表为空 */
 export const DEFAULT_SAMPLE_BADGES: BadgeItem[] = [
   {
     id: 'badge-demo-1',

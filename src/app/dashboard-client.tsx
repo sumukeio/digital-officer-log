@@ -13,7 +13,7 @@ import {
   LogOut, PlusCircle, KeyRound, Loader2, Bot,
   Settings2, BarChart3, User, MapPin, BadgeCheck,
   UserCircle, LayoutTemplate, BookOpen, ExternalLink,
-  ClipboardList, Bell, History, FileSpreadsheet, Clock
+  ClipboardList, Bell, History, FileSpreadsheet, Clock, Newspaper, Factory
 } from "lucide-react";
 import { UpdateAnnouncementDialog } from "@/components/UpdateAnnouncement";
 import { logout, changePassword } from "@/app/actions/auth";
@@ -55,7 +55,7 @@ interface DashboardClientProps {
 export default function DashboardClient({ submittedDates, currentUser, quickLinks }: DashboardClientProps) {
   const router = useRouter();
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const isAdmin = currentUser.roles.some(r => r.name === 'admin');
+  const isAdmin = currentUser?.roles?.some(r => r.name === 'admin') ?? false;
 
   // 修复 Hydration Mismatch
   const [mounted, setMounted] = useState(false);
@@ -155,6 +155,12 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
            <Button variant="ghost" size="sm" onClick={() => router.push('/weekly-summary')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 ml-1">
              <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> <span className="font-medium">周报生成</span>
            </Button>
+           <Button variant="ghost" size="sm" onClick={() => router.push('/headline-brief')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-sky-600 hover:bg-sky-50 ml-1">
+             <Newspaper className="w-4 h-4 text-sky-600" /> <span className="font-medium">头条周简报</span>
+           </Button>
+           <Button variant="ghost" size="sm" onClick={() => router.push('/qc-workshop')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-violet-600 hover:bg-violet-50 ml-1">
+             <Factory className="w-4 h-4 text-violet-600" /> <span className="font-medium">QC车间统计</span>
+           </Button>
            <Button variant="ghost" size="sm" onClick={() => router.push('/shifts')} className="hidden sm:flex items-center gap-2 text-slate-600 hover:text-amber-600 hover:bg-amber-50 ml-1">
              <Clock className="w-4 h-4 text-amber-600" /> <span className="font-medium">转班提醒</span>
            </Button>
@@ -166,6 +172,8 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
             {/* 移动端/管理员按钮等 */}
             <Button variant="ghost" size="icon" onClick={() => router.push('/tasks')} className="sm:hidden text-slate-600" title="任务看板"><ClipboardList className="w-5 h-5" /></Button>
             <Button variant="ghost" size="icon" onClick={() => router.push('/weekly-summary')} className="sm:hidden text-slate-600" title="周报生成"><FileSpreadsheet className="w-5 h-5 text-emerald-600" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => router.push('/headline-brief')} className="sm:hidden text-slate-600" title="头条周简报"><Newspaper className="w-5 h-5 text-sky-600" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => router.push('/qc-workshop')} className="sm:hidden text-slate-600" title="QC车间统计"><Factory className="w-5 h-5 text-violet-600" /></Button>
             <Button variant="ghost" size="icon" onClick={() => router.push('/shifts')} className="sm:hidden text-slate-600" title="转班提醒"><Clock className="w-5 h-5 text-amber-600" /></Button>
             <Button variant="ghost" size="icon" onClick={() => router.push('/badge')} className="sm:hidden text-slate-600" title="工牌生成"><BadgeCheck className="w-5 h-5 text-blue-600" /></Button>
             <Button variant="ghost" size="icon" onClick={() => router.push('/knowledge')} className="sm:hidden text-slate-600"><BookOpen className="w-5 h-5" /></Button>
@@ -193,6 +201,9 @@ export default function DashboardClient({ submittedDates, currentUser, quickLink
            <div className="flex gap-2 w-full sm:w-auto">
              <Button variant="outline" onClick={() => router.push("/weekly-summary")} className="h-12 px-5 text-sm border-blue-200 text-blue-700 bg-blue-50/70 hover:bg-blue-100 flex-1 sm:flex-initial">
                <FileSpreadsheet className="w-4 h-4 mr-1.5 text-emerald-600" /> 自动总结周报
+             </Button>
+             <Button variant="outline" onClick={() => router.push("/headline-brief")} className="h-12 px-5 text-sm border-sky-200 text-sky-700 bg-sky-50/70 hover:bg-sky-100 flex-1 sm:flex-initial">
+               <Newspaper className="w-4 h-4 mr-1.5 text-sky-600" /> 头条周简报
              </Button>
              <Button onClick={() => router.push("/report/new")} className="h-12 px-6 text-base shadow-lg shadow-blue-200 flex-1 sm:flex-initial">
                <PlusCircle className="w-5 h-5 mr-2" /> 新建今日日报
@@ -393,11 +404,17 @@ function UserProfileDialog({ user }: { user: DashboardClientProps['currentUser']
 }
 
 function ForceChangePasswordDialog({ open }: { open: boolean }) {
-  // ...原来的代码
   const [state, action, isPending] = useActionState(changePassword, null);
-  useEffect(() => { if (state?.success) { toast.success("密码修改成功，系统将自动刷新"); setTimeout(() => window.location.reload(), 1500); } else if (state?.success === false) { toast.error(state.message); } }, [state]);
+  useEffect(() => { 
+    if (state?.success) { 
+      toast.success("密码修改成功，正在进入系统..."); 
+      setTimeout(() => window.location.reload(), 1200); 
+    } else if (state?.success === false) { 
+      toast.error(state.message || "修改密码失败"); 
+    } 
+  }, [state]);
   return (
-    <Dialog open={open}>
+    <Dialog open={Boolean(open)}>
       <DialogContent className="[&>button]:hidden pointer-events-auto" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
         <DialogHeader><DialogTitle className="text-red-600 flex items-center gap-2"><KeyRound className="w-5 h-5" /> 安全警告：请修改初始密码</DialogTitle></DialogHeader>
         <div className="text-sm text-slate-500 mb-4 bg-red-50 p-3 rounded border border-red-100">为了您的数据安全，首次登录必须将初始密码 (123456) 修改为您的个人密码。</div>

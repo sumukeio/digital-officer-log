@@ -29,11 +29,11 @@ export function BadgeCard({
   const cardHeightPx = isPrint ? undefined : baseH * r;
 
   const items = [
-    { label: '姓名Name:', value: badge.name || '' },
-    { label: '部门Dept:', value: badge.department || '' },
-    { label: '职务Post:', value: badge.post || '' },
-    { label: '工号  No:', value: badge.workNo || '' },
-    { label: '入职日期:', value: badge.entryDate || '' },
+    { label: '姓名Name', value: badge.name || '' },
+    { label: '部门Dept', value: badge.department || '' },
+    { label: '职务Post', value: badge.post || '' },
+    { label: '工号 No', value: badge.workNo || '' },
+    { label: '入职日期', value: badge.entryDate || '' },
   ];
 
   return (
@@ -122,6 +122,7 @@ export function BadgeCard({
             <QRCodeSVG
               value={badge.qrData || badge.workNo || badge.name || '1001'}
               size={isPrint ? config.qrSize : config.qrSize * r}
+              logoUrl={config.logoShow ? config.logoUrl : null}
             />
           </div>
         )}

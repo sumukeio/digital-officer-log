@@ -15,6 +15,7 @@ export default async function DashboardPage() {
     id: "dev-admin-id",
     workId: "admin",
     name: "数字官",
+    isDefaultPassword: false,
     assignedAreas: "智造一部, 智造二部, 智造三部",
     roles: [{ id: "r-admin", name: "admin" }],
   };

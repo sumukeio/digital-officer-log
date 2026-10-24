@@ -3,6 +3,275 @@
 > **权威性声明**：本文档遵循 Keep a Changelog 格式规范，**只追加、不覆盖**。
 > **维护规则**：每次完成 Phase 任务或重要工程/业务交付时，在此以标准格式追加最新记录。
 
+## [2026-10-24] - 运维文档沉淀：ERR_EMPTY_RESPONSE 与服务停止快速自愈
+
+### 新增
+- `docs/guide/bt-panel-deployment-guide.md`：新增第十节《日常运维排障速查：服务无响应 (ERR_EMPTY_RESPONSE / 502) 快速自愈》，提供从 PM2 列表为空到 `3002` 端口拉起、`pm2 save` 持久化自启的标准操作链。
+- `docs/guide/deployment-troubleshooting.md`：补充《浏览器报错：ERR_EMPTY_RESPONSE（服务停止/无响应）》排查与自愈标准。
+- `.phrase/docs/ISSUES.md`：登记并闭环 `issue008`（内网访问提示 ERR_EMPTY_RESPONSE / 服务意外停止排障），记录真实就绪日志。
+
+### 验证
+- 服务器 `10.10.10.230` 终端执行 `PORT=3002 pm2 start npm --name "digital-officer-log" -- run start:bt` 与 `pm2 save` 实战通过，Next.js 16.0.8 正常监听 `3002` 端口，服务完全恢复。
+
+---
+
+## [2026-09-15] - task027：QC 周期三模式（周/月/自定义）
+
+### 新增
+- `/qc-workshop` 左上角：周 | 月 | 自定义；月含「整月 / 月初至今」。
+- `period.ts` + 按 `storageKey` 分桶缓存；整表当区间（不按开卡时间裁剪）。
+
+### 变更
+- RFC002 §6 补充周期三模式决策；周报联动仅在「周」模式。
+
+### 验证
+- `npm test -- --testPathPattern=qc-workshop` 42 用例通过。
+
+---
+
+## [2026-09-15] - task026：QC 车间统计 UI（/qc-workshop）
+
+### 新增
+- 路由 `/qc-workshop`：上传 QC / 机台映射表、统计预览、下载分析 Excel 与纯文本、复制 Prompt。
+- `browser-storage`：localStorage 缓存；`weekly-summary` 上传 QC 时自动写入当周缓存。
+
+### 变更
+- 工作台顶栏新增「QC车间统计」入口；`docs/guide/project-modules-and-features.md` §6b。
+
+### 验证
+- `npm test` 170 通过；`npx next build` 含 `/qc-workshop` 路由编译通过。
+
+---
+
+## [2026-09-15] - task025：QC 导出 xlsx / txt / Prompt
+
+### 新增
+- `buildQcWorkshopXlsx`：分析 Excel（全厂概览、有数据车间 Sheet、未归类）；无 0 条空 Sheet。
+- `buildQcWorkshopTxt`：单文件纯文本（7 标准部门有数据分章节；不含 Prompt）。
+- `buildQcWorkshopPrompt`：全厂/分车间海铭德 AI 指令（硬约束同 headline-brief）。
+- Jest：`qc-workshop-export.test.ts`（qc-workshop 合计 34 用例绿）。
+
+### 下一任务
+- `task026`：UI 入口、上传/读当周 QC、下载/复制、文档闭环（待确认后执行）。
+
+---
+
+## [2026-09-15] - task024：QC 车间聚合器
+
+### 新增
+- `aggregateQcByWorkshop` / `listStandardWorkshopsWithData`：全厂与分车间 TOP、未归类分离。
+- Jest：`qc-workshop-aggregator.test.ts`（与 resolve 合计 22 用例绿）。
+
+### 下一任务
+- `task025`：导出 xlsx + txt + Prompt 生成（待确认后执行）。
+
+---
+
+## [2026-09-15] - task023：QC 机台映射归属引擎
+
+### 新增
+- `src/lib/qc-workshop/`：机台映射表解析、后缀匹配、RFC002 别名（T001→二部、喷绘→七部、装箱/吸塑无前缀→九部）、`resolveWorkshop`。
+- Jest：`qc-workshop-resolve.test.ts`（13 用例；样例覆盖率 ≥95%）。
+
+### 下一任务
+- `task024`：QC 车间聚合器（待确认后执行）。
+
+---
+
+## [2026-09-15] - RFC002 锁定 + 开启 phase-qc-workshop（task022）
+
+### 文档
+- `docs/rcfs/RFC002.md`：写入已锁定 MVP 决策（7 车间、别名、xlsx/txt/Prompt、Non-goals）；原文讨论保留。
+- 新建 `.phrase/phases/phase-qc-workshop-20260915/`（spec/plan/task/change）。
+- 切换 `.phrase/docs/CHANGE.md` 当前阶段；`docs/README.md` 增加 RFC002 路由。
+
+### 下一原子任务
+- `task023`：机台映射解析与归属匹配（待人类下令执行）。
+
+---
+
+## [2026-09-15] - fix: 工牌 PDF 导出 Blob 类型导致 `npm run build` 失败（issue007 续）
+
+### 缺陷修复
+- **根因**：`export-pdf.ts` 将 pdf-lib 的 `Uint8Array` 直接传入 `Blob`，TS 5 严格模式下不满足 `BlobPart`。
+- **修复**：改为 `new Blob([Uint8Array.from(pdfBytes)], …)`；本地 `npm run build` 已通过。
+- **部署**：必须先 build 成功再 pm2 start；服务器需 `git pull` 后重跑 `npm run build`。
+
+---
+
+## [2026-09-15] - issue007 复盘：BUILD_ID 缺失仍 pm2 start
+
+### 运维
+- 二次日志确认：`ls .next/BUILD_ID` 失败后仍启动 PM2；出现同名双进程（id 3/4）；服务器 `start:bt` 仍为旧版无门禁。
+- ISSUES `issue007` 追加完整终端输出与「先 delete → pull → build → 再 start」强制顺序。
+
+---
+
+## [2026-09-15] - issue007：PM2 无生产构建启动失败
+
+### 缺陷修复 / 运维
+- **根因**：`start:bt`（`next start`）在缺少 `.next/BUILD_ID` 时启动，PM2 反复报 `production-start-no-build-id`。
+- **处置**：服务器须先 `npm run build` 再 PM2 启动；ISSUES 登记 `issue007` 完整日志与步骤。
+- **防退化**：新增 `scripts/ensure-production-build.js`，`start:bt` 启动前门禁；同步 `bt-panel-deployment-guide.md` 与 `deployment-troubleshooting.md`。
+
+---
+
+## [2026-09-15] - 文档：`问题与解决.md` 全文迁移入 ISSUES
+
+### 文档
+- 将 `docs/rcfs/问题与解决.md` **全文**并入 `.phrase/docs/ISSUES.md`（内容只增不减；路径链接已改写为相对 ISSUES 可达）。
+- 索引增补 issue002–issue006 跳转锚点；`docs/README.md` 路由表同步。
+- 经用户授权删除原 `docs/rcfs/问题与解决.md`（权威副本以 ISSUES「全文迁移」章节为准）。
+
+---
+
+## [2026-09-15] - 工牌对齐参考工具（issue001 / task021）
+
+### 缺陷修复
+- **尺寸与布局**：默认坐标对齐参考 `layout_config.json`（含 `photo_w=250`、`text_value_x=253`）；单卡 54×90mm，A4 3×3 居中拼版。
+- **二维码**：替换伪点阵为标准 `qrcode`，中心嵌入企业 Logo（高度 ≈ qrSize/4）。
+- **录入体验**：列表初始为空（不再预置 3 条演示数据）；去掉「载入数字官」。
+- **正式交付**：按钮改为「导出 PDF」——Canvas 渲染 + `pdf-lib` 生成 `工牌.pdf`（供 WPS 打开打印），不再依赖浏览器 `window.print()`。
+
+### 依赖
+- 新增：`pdf-lib`、`qrcode`、`@types/qrcode`。
+
+### 测试
+- 新增 `badge-pdf-layout` 几何单测；更新 Badge 组件单测；`npm test` 全量通过。
+
+---
+
+## [2026-09-12] - 部署：补充 `start:bt`（固定 3002）与端口冲突排错说明
+
+### 运维
+- `package.json` 新增 `start:bt`：`next start -p 3002`，对齐宝塔部署端口约定。
+- `docs/rcfs/问题与解决.md`：记录「3000 被占落到 3003 / 误用 dev」根因与服务器处置步骤；说明 SystemConfig 轮询属 cron 正常行为。
+
+---
+
+## [2026-09-12] - 修复 QC 并列收益 bullet 规则提炼为空
+
+### 缺陷修复
+- **根因**：`extractBenefits` 仅识别「生产/质量/管理收益」小标题；QC 长文为四条并列 bullet，导致三类收益全空。
+- **修复**：无小标题时按语义归类并顺序兜底填入 `production/quality/management`；补充对应 Jest 用例。
+
+---
+
+## [2026-09-12] - 海报 A1/B1/C2：测宽折行、单模块单图动态增高、分模块导出
+
+### 功能增强
+- **A1 换行**：`wrapTextByWidth` 按像素测宽 + 软边距，优先在标点处断开；去掉标题前导序号，修复 `1. 1.`。
+- **B1 单页**：单模块永远一张图，画布高度随内容动态增高（宽 1240）。
+- **C2 分模块**：下载全部模块各一张；复制仅当前选中模块。
+
+### 测试
+- 补充测宽折行、去序号、单页高度单测；headline-brief 相关用例全绿。
+
+---
+
+## [2026-09-12] - 头条周简报体验增强：最终稿可编 / 海报复制 / 海报 v2
+
+### 功能增强
+- **最终稿优先（方案 A）**（`headline-brief-client.tsx`）：右侧可编辑 Markdown 源码，仅影响推送/复制/保存，不回写左侧结构；支持「重置为结构稿」与渲染预览切换。
+- **海报复制**（`PosterExport.tsx`）：支持将 PNG 写入剪贴板；不支持或失败时自动回退下载。
+- **海报 v2**（`src/lib/headline-brief/poster.ts`）：1080×1920 结构化绘制——顶栏层级、章节胶囊、问题卡片+证据芯片、改善列表、收益三格、底部安全区；生产/QC 分色主题。
+
+### 测试
+- 补充芯片压缩与主题色单测；headline-brief 相关套件全绿。
+
+---
+
+## [2026-09-12] - 头条周简报全栈落地 (`phase-headline-brief-20260912` / task015–task020)
+
+### 新增功能
+- **独立模块「头条周简报」**（路由 `/headline-brief`）：与海铭德指标周报互补，聚焦「问题—改善—收益」领导群可读精简汇报。
+- **规则提炼引擎**（`src/lib/headline-brief/`）：解析 DeepSeek 长文为结构化草稿，硬约束问题≤3 / 改善≤4 / 收益三类各 1 句 / Markdown 建议≤1200 字。
+- **工作台闭环**：粘贴 → 提炼 → 结构化编辑 → 企微 Markdown 预览/复制/合并或分模块推送 → 按周存档（`HeadlineBrief`）。
+- **一页竖版海报 PNG**：Canvas 同数据源导出下载，兼容发群发图习惯。
+- **指标联动**：可从当周 `WeeklyReport.metrics` 自动生成问题结论骨架。
+- **导航入口**：Dashboard 顶栏与欢迎区新增「头条周简报」快捷入口。
+
+### 数据模型
+- Prisma 新增 `HeadlineBrief`（`userId + year + weekNumber` 唯一），关联 `User.headlineBriefs`。
+
+### 测试与构建
+- 新增 Jest：核心库 / Actions / StructuredEditor 组件套件。
+- 需在可达数据库环境执行 `npx prisma db push`（或 migrate）以创建物理表。
+
+### 文档
+- 更新 `docs/guide/project-modules-and-features.md`、`docs/README.md`、`.phrase` 阶段文档与本 CHANGELOG。
+
+---
+
+## [2026-09-12] - 开启头条周简报阶段 (`phase-headline-brief-20260912` / `task015`)
+
+### 文档与阶段门禁
+- **新增阶段**：`phase-headline-brief-20260912`，目标为「问题—改善—收益」精简汇报（粘贴提炼、企微短文、海报、指标联动）。
+- **阶段文档**：`spec_headline_brief.md` / `plan_headline_brief.md` / `task_headline_brief.md` / `change_headline_brief.md`。
+- **索引更新**：`.phrase/docs/CHANGE.md` 切换当前进行阶段；需求输入见 `docs/rcfs/新需求.md`。
+
+---
+
+## [2026-09-06] - 企微周报 Markdown 模板内容补全与模块勾选过滤联动优化
+
+### 功能增强与缺陷修复
+- **周报核心生成器 (`src/lib/weekly-report/report-generator.ts`)**：
+  - **企微 Markdown 模板内容全面补齐**：
+    - 补齐反思说明：支持生产头条（`productionReflection`）、QC 头条（`qcReflection`）、新随拍（`punchReflection`）的反思与默认业务文案自动兜底；
+    - 补齐综合点检：在「设备点检与保养」板块中纳入「综合点检」（`inspectionGeneral`）运行情况；
+    - 补齐关键协同板块：补充「必应与任务格子」、「集体培训」、「公告与激励」板块的标准企业微信 Markdown 排版（加粗、引用块、色彩标识）。
+  - **模块勾选过滤与自然序号自适应**：
+    - 纯文本周报与企微 Markdown 周报全面接入 `isModuleActive` 判定；
+    - 兼容历史与现有多种格式（`string[]` 与 `Record<string, boolean>`）；
+    - 修复取消勾选「集体培训」后纯文本与 Markdown 依然渲染的问题；
+    - 实现取消勾选任意模块时，周报内部序号自适应连续递增（1、2、3...），杜绝断号与跳号。
+- **周报前端页面联动 (`src/app/weekly-summary/weekly-summary-client.tsx`)**：
+  - 将 `activeModules` 作为参数传入 `generatePlainTextWeeklyReport` 与 `generateWeComMarkdownWeeklyReport`；
+  - 将 `activeModules` 纳入 `useMemo` 依赖项，保证用户在「周报模板勾选配置」中切换任意开关时，周报文本与预览实时响应；
+  - 增强历史归档周报的 `activeModules` 反序列化安全防御，兼容数组与对象映射。
+- **自动化测试回归 (`src/__tests__/lib/weekly-report.test.ts`)**：
+  - 补充企业微信 Markdown 模板字段完整性验证用例；
+  - 补充取消勾选「集体培训」时的纯文本与 Markdown 过滤及序号重排断言；
+  - 全量 `npm test`：15 个测试套件 109 个测试用例 100% 绿色通过；
+  - 严格构建 `npm run build`：0 错误构建成功。
+
+---
+
+## [2026-09-05] - 修复系统设置 Logo 上传 ENOTFOUND 异常与多重本地存储保底
+
+### 缺陷修复与稳定性增强
+- **文件上传与多重存储保底 (`src/lib/minio.ts`)**：
+  - **根因根除**：私网环境下未配置外部 S3/MinIO 服务时，代码尝试连接默认占位域名（`dummy.supabase.co`）触发 DNS 寻址异常（`ENOTFOUND`）；
+  - **本地持久化存储 (`public/uploads`)**：未配置 S3 时自动无缝降级为写入本地静态目录 `/uploads/${bucketName}/${filename}`，由 Next.js 静态服务直接对外提供访问；
+  - **Base64 Data URI 多重保底**：在极限制约环境下自动降级为 Base64 Data URI 直接入库，保证 Logo 图片 100% 成功保存且永不丢失。
+- **系统设置 Action 安全收敛 (`src/app/actions/admin.ts`)**：
+  - [saveSystemConfig](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/app/actions/admin.ts)：完善 Try-Catch 防御边界，避免未捕获异常抛向客户端。
+- **缺陷排查台账同步 (`docs/guide/QA.md`)**：
+  - 沉淀记录缺陷 001（Logo 上传失败）的现象、根因、修复方案与防再犯机制。
+
+---
+
+## [2026-09-05] - 修复生产环境缺少 OpenAI Key 导致的 Digest:1796960860 崩溃与安全加固
+
+### 缺陷修复与稳定性增强
+- **OpenAI / AI 模块延迟加载 (`src/app/actions/ai.ts`)**：
+  - **根因根除**：顶层执行 `new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY })` 在服务端未配置该环境变量时会在模块加载阶段直接抛出 `Missing credentials` 致命异常（触发 Next.js 全局崩溃 `Digest: 1796960860`）；
+  - **延迟初始化 (`getOpenAIClient`)**：改为函数内部调用时按需延迟实例化，并增加环境变量兜底判断与友好提示，未配置 Key 时绝不影响工作台主页及任何业务功能。
+- **MinIO S3 客户端延迟加载 (`src/lib/minio.ts`)**：
+  - 改为 `getS3Client` 延迟获取，避免缺失环境变量时产生顶层异常。
+- **身份认证安全加固 (`src/app/actions/auth.ts`)**：
+  - **全量 Try-Catch 与参数安全校验**：解决 `changePassword` 参数在 `try...catch` 外解析导致的空指针/未捕获异常；对 `oldPassword`、`newPassword`、`formData` 实行严格空值与类型防御，杜绝抛出未捕获 500 异常；
+  - **增加路径刷新缓存 (`revalidatePath`)**：密码修改成功后主动调用 `revalidatePath("/")`，同步更新客户端与服务端状态；
+  - **离线与开发者模式平滑兼容**：在 `dev-admin-id` 离线调试模式下，安全返回成功提示，避免数据库未连通时阻塞界面；
+  - **登录与重置密码统一加固**：对 `login`、`resetPassword` 统一补充安全防御边界与返回值格式规范。
+- **前端安全弹窗优化 (`src/app/dashboard-client.tsx` & `src/app/page.tsx`)**：
+  - [dashboard-client.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/app/dashboard-client.tsx)：`isAdmin` 判断与角色检查补充可选链防御（`currentUser?.roles?.some(...) ?? false`）；`ForceChangePasswordDialog` 使用 `Boolean(open)` 规范布尔属性并优化反馈体验；
+  - [page.tsx](file:///d:/j/OpenProject/Nextproject/digital-officer-log/src/app/page.tsx)：服务端回退对象补充 `isDefaultPassword: false` 属性。
+- **自动化回归测试 (`src/__tests__/actions/auth.test.ts`)**：
+  - 补充空表单数据、离线模式、数据库异常抛出安全捕获等 3 个回归测试用例；
+  - 全量执行 `npm test`：14 个测试套件 106 个测试用例 100% 绿色通过；
+  - 执行 `npm run build`：生产环境全量严格构建 0 错误通过。
+
 ---
 
 ## [2026-09-01] - 企业微信日报定时催报可视化管理中心落地
